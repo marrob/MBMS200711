@@ -1,0 +1,16 @@
+﻿
+list/
+obj/
+Binary/
+Middlewares/
+
+*.bat
+*.Margit Róbert
+*.uvopt
+*.bak
+*.dep
+*.sdf
+*.suo
+*.filters
+*.user
+*.opensdf
