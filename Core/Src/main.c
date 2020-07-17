@@ -23,7 +23,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdio.h>
+#include "LiveLed.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -43,14 +44,15 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+LiveLED_HnadleTypeDef hLiveLed;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 /* USER CODE BEGIN PFP */
-
+void LiveLedOff(void);
+void LiveLedOn(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -67,7 +69,6 @@ int main(void)
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
-  
 
   /* MCU Configuration--------------------------------------------------------*/
 
@@ -75,7 +76,11 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  /*** LiveLed ***/
+  hLiveLed.LedOffFnPtr = &LiveLedOff;
+  hLiveLed.LedOnFnPtr = &LiveLedOn;
+  hLiveLed.HalfPeriodTimeMs = 500;
+  LiveLedInit(&hLiveLed);
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -90,8 +95,6 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
- 
- 
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
@@ -100,6 +103,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    LiveLedTask(&hLiveLed);
   }
   /* USER CODE END 3 */
 }
@@ -164,6 +168,19 @@ int _write(int file, char *ptr, int len)
     ITM_SendChar((*ptr++));
   return len;
 }
+/* LEDs ---------------------------------------------------------------------*/
+void LiveLedOn(void)
+{
+  HAL_GPIO_WritePin(LIVE_LED_GPIO_Port, LIVE_LED_Pin, GPIO_PIN_SET);
+}
+
+void LiveLedOff(void)
+{
+  HAL_GPIO_WritePin(LIVE_LED_GPIO_Port, LIVE_LED_Pin, GPIO_PIN_RESET);
+}
+
+
+
 /* USER CODE END 4 */
 
 /**

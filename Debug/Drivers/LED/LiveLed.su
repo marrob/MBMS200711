@@ -1,0 +1,2 @@
+LiveLed.c:18:9:LiveLedInit	16	static
+LiveLed.c:27:9:LiveLedTask	16	static
