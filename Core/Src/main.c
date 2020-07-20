@@ -20,10 +20,13 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "usb_device.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+#include "common.h"
+#include "usbd_cdc_if.h"
 #include "LiveLed.h"
 /* USER CODE END Includes */
 
@@ -53,6 +56,7 @@ static void MX_GPIO_Init(void);
 /* USER CODE BEGIN PFP */
 void LiveLedOff(void);
 void LiveLedOn(void);
+void TestVcpTask(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -92,8 +96,23 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
 
+  DelayMs(500);
+
+
+  printf(VT100_CLEARSCREEN);
+  printf(VT100_CURSORHOME);
+  printf(VT100_ATTR_RESET);
+
+#ifdef DEBUG
+  printf(VT100_ATTR_RED);
+    DeviceUsrLog("This is a DEBUG version.");
+  printf(VT100_ATTR_RESET);
+#endif
+
+  DeviceUsrLog("Manufacturer:%s, Name:%s, Version:%04X",DEVICE_MNF, DEVICE_NAME, DEVICE_FW);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -104,6 +123,8 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
     LiveLedTask(&hLiveLed);
+    CDC_Task_FS();
+    TestVcpTask();
   }
   /* USER CODE END 3 */
 }
@@ -116,6 +137,7 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
   /** Initializes the CPU, AHB and APB busses clocks 
   */
@@ -143,6 +165,12 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB;
+  PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_PLL_DIV1_5;
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
+  {
+    Error_Handler();
+  }
 }
 
 /**
@@ -152,22 +180,73 @@ void SystemClock_Config(void)
   */
 static void MX_GPIO_Init(void)
 {
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(LIVE_LED_GPIO_Port, LIVE_LED_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : LIVE_LED_Pin */
+  GPIO_InitStruct.Pin = LIVE_LED_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(LIVE_LED_GPIO_Port, &GPIO_InitStruct);
 
 }
 
 /* USER CODE BEGIN 4 */
 /* printf -------------------------------------------------------------------*/
+
+//int _write(int file, char *ptr, int len)
+//{
+//  int i=0;
+//  for(i=0 ; i<len ; i++)
+//    ITM_SendChar((*ptr++));
+//  return len;
+//}
+//
+//int _write(int file, char *ptr, int len)
+//{
+//  HAL_UART_Transmit(&huart1, (uint8_t*)ptr, len, 100);
+//  return len;
+//}
+
 int _write(int file, char *ptr, int len)
 {
-  int i=0;
-  for(i=0 ; i<len ; i++)
-    ITM_SendChar((*ptr++));
+  CDC_Transmit_FS((uint8_t*)ptr, len);
   return len;
 }
+
+void TestVcpTask(void)
+{
+  static int32_t timestamp;
+  static uint64_t counter = 0;
+  if(HAL_GetTick() - timestamp >= 1000)
+  {
+    timestamp = HAL_GetTick();
+
+    char test_sentence[80] = {"Hello World"};
+    sprintf(test_sentence, "%s %lld\r\n", test_sentence,counter++);
+
+    strcpy(UsbdUart.TxLine,test_sentence);
+    printf(test_sentence);
+    UsbdUart.TxCounter++;
+
+    if(UsbdUart.RxRequest)
+    {
+      printf("%s\r\n",UsbdUart.RxLine);
+      UsbdUart.RxRequest = 0;
+      UsbdUart.TxCounter++;
+    }
+  }
+}
+
+
 /* LEDs ---------------------------------------------------------------------*/
 void LiveLedOn(void)
 {
