@@ -89,6 +89,12 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define LIVE_LED_Pin GPIO_PIN_13
 #define LIVE_LED_GPIO_Port GPIOC
+#define MAX_CS_Pin GPIO_PIN_12
+#define MAX_CS_GPIO_Port GPIOB
+#define MAX_INT_Pin GPIO_PIN_8
+#define MAX_INT_GPIO_Port GPIOA
+#define MAX_SHDN_Pin GPIO_PIN_9
+#define MAX_SHDN_GPIO_Port GPIOA
 /* USER CODE BEGIN Private defines */
 
 #define DEVICE_FW           0x200720

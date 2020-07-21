@@ -1,9 +1,5 @@
-﻿
-list/
-obj/
-Binary/
-Middlewares/
-
+Debug/*
+Release/*
 *.bat
 *.Margit Róbert
 *.uvopt
@@ -14,3 +10,5 @@ Middlewares/
 *.filters
 *.user
 *.opensdf
+*.tmp
+

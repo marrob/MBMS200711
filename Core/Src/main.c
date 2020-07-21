@@ -37,6 +37,15 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+#define MAX_ASCI_MODEL    0x15
+#define MAX_ASCI_VERSION  0x17
+
+
+
+#define MAX_ASCI_OK       0x00
+#define MAX_ASCI_IO_ERROR 0x01
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -45,18 +54,27 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+SPI_HandleTypeDef hspi2;
 
 /* USER CODE BEGIN PV */
 LiveLED_HnadleTypeDef hLiveLed;
+
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_SPI2_Init(void);
 /* USER CODE BEGIN PFP */
 void LiveLedOff(void);
 void LiveLedOn(void);
 void TestVcpTask(void);
+
+uint8_t MaxAsciGetModel();
+void MaxAsciWakeUp(void);
+void MaxAsciShutDown(void);
+uint8_t MaxAsciReadReg(uint8_t regAddr,  uint8_t *readBuffer, uint8_t size);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -96,6 +114,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_SPI2_Init();
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
 
@@ -113,6 +132,9 @@ int main(void)
 #endif
 
   DeviceUsrLog("Manufacturer:%s, Name:%s, Version:%04X",DEVICE_MNF, DEVICE_NAME, DEVICE_FW);
+
+  MaxAsciWakeUp();
+  MaxAsciGetModel();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -174,6 +196,44 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief SPI2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SPI2_Init(void)
+{
+
+  /* USER CODE BEGIN SPI2_Init 0 */
+
+  /* USER CODE END SPI2_Init 0 */
+
+  /* USER CODE BEGIN SPI2_Init 1 */
+
+  /* USER CODE END SPI2_Init 1 */
+  /* SPI2 parameter configuration*/
+  hspi2.Instance = SPI2;
+  hspi2.Init.Mode = SPI_MODE_MASTER;
+  hspi2.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi2.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi2.Init.NSS = SPI_NSS_SOFT;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
+  hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi2.Init.CRCPolynomial = 10;
+  if (HAL_SPI_Init(&hspi2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN SPI2_Init 2 */
+
+  /* USER CODE END SPI2_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -185,10 +245,17 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LIVE_LED_GPIO_Port, LIVE_LED_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(MAX_CS_GPIO_Port, MAX_CS_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(MAX_SHDN_GPIO_Port, MAX_SHDN_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : LIVE_LED_Pin */
   GPIO_InitStruct.Pin = LIVE_LED_Pin;
@@ -196,6 +263,26 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LIVE_LED_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : MAX_CS_Pin */
+  GPIO_InitStruct.Pin = MAX_CS_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(MAX_CS_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : MAX_INT_Pin */
+  GPIO_InitStruct.Pin = MAX_INT_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(MAX_INT_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : MAX_SHDN_Pin */
+  GPIO_InitStruct.Pin = MAX_SHDN_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(MAX_SHDN_GPIO_Port, &GPIO_InitStruct);
 
 }
 
@@ -245,7 +332,52 @@ void TestVcpTask(void)
     }
   }
 }
+/* MAX ASCI -----------------------------------------------------------------*/
 
+uint8_t MaxAsciGetModel(void)
+{
+
+  uint8_t modelNumber[] = {0}; /*Defult is 0x84*/
+  MaxAsciReadReg(MAX_ASCI_MODEL, modelNumber, sizeof(modelNumber));
+  uint8_t versionNumber[] = {0}; /*Defult is 0x12*/
+  MaxAsciReadReg(MAX_ASCI_VERSION, versionNumber, sizeof(versionNumber));
+
+
+  return 0;
+}
+
+
+uint8_t MaxAsciReadReg(uint8_t regAddr,  uint8_t *readBuffer, uint8_t size)
+{
+  uint8_t status = MAX_ASCI_OK;
+  uint8_t txBuffer[] = {regAddr};
+
+  HAL_GPIO_WritePin(MAX_CS_GPIO_Port, MAX_CS_Pin, GPIO_PIN_RESET);
+
+  if(HAL_SPI_Transmit(&hspi2, txBuffer, sizeof(txBuffer), 100)!= HAL_OK)
+  {
+    status = MAX_ASCI_IO_ERROR;
+  }
+
+  if(HAL_SPI_Receive(&hspi2, readBuffer, size, 100)!= HAL_OK)
+  {
+      status = MAX_ASCI_IO_ERROR;
+  }
+
+  HAL_GPIO_WritePin(MAX_CS_GPIO_Port, MAX_CS_Pin, GPIO_PIN_SET);
+
+  return status;
+}
+
+void MaxAsciWakeUp(void)
+{
+  HAL_GPIO_WritePin(MAX_SHDN_GPIO_Port, MAX_SHDN_Pin, GPIO_PIN_SET);
+}
+
+void MaxAsciShutDown(void)
+{
+  HAL_GPIO_WritePin(MAX_SHDN_GPIO_Port, MAX_SHDN_Pin, GPIO_PIN_SET);
+}
 
 /* LEDs ---------------------------------------------------------------------*/
 void LiveLedOn(void)
