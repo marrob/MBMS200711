@@ -95,6 +95,8 @@ void Error_Handler(void);
 #define MAX_INT_GPIO_Port GPIOA
 #define MAX_SHDN_Pin GPIO_PIN_9
 #define MAX_SHDN_GPIO_Port GPIOA
+#define USB_PULL_Pin GPIO_PIN_15
+#define USB_PULL_GPIO_Port GPIOA
 /* USER CODE BEGIN Private defines */
 
 #define DEVICE_FW           0x200720

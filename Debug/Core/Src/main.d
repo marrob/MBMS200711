@@ -34,7 +34,7 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_core.h \
  ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ioreq.h \
  ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ctlreq.h \
- ../Drivers/LED/LiveLed.h
+ ../Drivers/LED/LiveLed.h ../Drivers/Common/Inc/StringPlus.h
 
 ../Core/Inc/main.h:
 
@@ -111,3 +111,5 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
 ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ctlreq.h:
 
 ../Drivers/LED/LiveLed.h:
+
+../Drivers/Common/Inc/StringPlus.h:

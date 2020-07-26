@@ -1,6 +1,0 @@
-StringPlus.c:15:7:StringPlusTrimWhitespace	24	static
-StringPlus.c:41:7:StringPlusDataToHexaString	32	static
-StringPlus.c:65:7:StringPlusDataToLimitedHexaString	32	static
-StringPlus.c:100:7:StringPlusToUpper	24	static
-StringPlus.c:112:6:IntToUnicode	32	static
-StringPlus.c:136:6:IntToAscii	32	static

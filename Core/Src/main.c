@@ -28,6 +28,7 @@
 #include "common.h"
 #include "usbd_cdc_if.h"
 #include "LiveLed.h"
+#include "StringPlus.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -58,7 +59,7 @@ SPI_HandleTypeDef hspi2;
 
 /* USER CODE BEGIN PV */
 LiveLED_HnadleTypeDef hLiveLed;
-
+uint32_t UartRxTimestamp;
 
 /* USER CODE END PV */
 
@@ -71,10 +72,16 @@ void LiveLedOff(void);
 void LiveLedOn(void);
 void TestVcpTask(void);
 
-uint8_t MaxAsciGetModel();
-void MaxAsciWakeUp(void);
-void MaxAsciShutDown(void);
-uint8_t MaxAsciReadReg(uint8_t regAddr,  uint8_t *readBuffer, uint8_t size);
+uint8_t AsciGetModel();
+void AsciWakeUp(void);
+void AsciShutDown(void);
+uint8_t AsciReadReg(uint8_t regAddr,  uint8_t *rxBuffer, uint8_t size);
+uint8_t AsciWrite(uint8_t *writeBuffer, uint8_t size);
+uint8_t AsciUartInitSeq(void);
+uint8_t AsciUartInitSeq2(void);
+void UsbPullUp(void);
+void AsciTask(void);
+uint8_t AsciReadRegU8(uint8_t regAddr,  uint8_t *byte);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -120,6 +127,8 @@ int main(void)
 
   DelayMs(500);
 
+  UsbPullUp();
+
 
   printf(VT100_CLEARSCREEN);
   printf(VT100_CURSORHOME);
@@ -133,8 +142,16 @@ int main(void)
 
   DeviceUsrLog("Manufacturer:%s, Name:%s, Version:%04X",DEVICE_MNF, DEVICE_NAME, DEVICE_FW);
 
-  MaxAsciWakeUp();
-  MaxAsciGetModel();
+AsciShutDown();
+DelayMs(100);
+AsciWakeUp();
+DelayMs(100);
+
+UartRxTimestamp = HAL_GetTick();
+
+//  AsciGetModel();
+ // AsciUartInitSeq();
+  //AsciUartInitSeq2();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -146,7 +163,8 @@ int main(void)
     /* USER CODE BEGIN 3 */
     LiveLedTask(&hLiveLed);
     CDC_Task_FS();
-    TestVcpTask();
+    //TestVcpTask();
+    AsciTask();
   }
   /* USER CODE END 3 */
 }
@@ -218,7 +236,7 @@ static void MX_SPI2_Init(void)
   hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -252,10 +270,10 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(LIVE_LED_GPIO_Port, LIVE_LED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(MAX_CS_GPIO_Port, MAX_CS_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(MAX_CS_GPIO_Port, MAX_CS_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(MAX_SHDN_GPIO_Port, MAX_SHDN_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, MAX_SHDN_Pin|USB_PULL_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin : LIVE_LED_Pin */
   GPIO_InitStruct.Pin = LIVE_LED_Pin;
@@ -267,8 +285,8 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin : MAX_CS_Pin */
   GPIO_InitStruct.Pin = MAX_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(MAX_CS_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : MAX_INT_Pin */
@@ -280,9 +298,16 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin : MAX_SHDN_Pin */
   GPIO_InitStruct.Pin = MAX_SHDN_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(MAX_SHDN_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : USB_PULL_Pin */
+  GPIO_InitStruct.Pin = USB_PULL_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(USB_PULL_GPIO_Port, &GPIO_InitStruct);
 
 }
 
@@ -334,34 +359,376 @@ void TestVcpTask(void)
 }
 /* MAX ASCI -----------------------------------------------------------------*/
 
-uint8_t MaxAsciGetModel(void)
+uint8_t AsciGetModel(void)
 {
 
   uint8_t modelNumber[] = {0}; /*Defult is 0x84*/
-  MaxAsciReadReg(MAX_ASCI_MODEL, modelNumber, sizeof(modelNumber));
+  AsciReadReg(MAX_ASCI_MODEL, modelNumber, sizeof(modelNumber));
+  DeviceDbgLog("Model Number 0x%02X", modelNumber[0]);
   uint8_t versionNumber[] = {0}; /*Defult is 0x12*/
-  MaxAsciReadReg(MAX_ASCI_VERSION, versionNumber, sizeof(versionNumber));
+  AsciReadReg(MAX_ASCI_VERSION, versionNumber, sizeof(versionNumber));
+  DeviceDbgLog("Version Number 0x%02X", versionNumber[0]);
+  return 0;
+}
 
+uint8_t AsciUartInitSeq2(void)
+{
+
+  uint8_t rxBuffer[100];
+  uint8_t txBuffer[100];
+
+  /* TX_Interrupt_Flags.POR_Flag 0x80*/
+  AsciReadReg(0x0B,rxBuffer,1);
+  /*MODEL REGISTER.First two digits of the Model Number (84h)*/
+  AsciReadReg(0x15,rxBuffer,1);
+  /*VERSION REGISTER Last digit of the Model Number (1h)/Mask revision (2)*/
+  AsciReadReg(0x17,rxBuffer,1);
+  /*FMEA REGISTER:0x00*/
+  AsciReadReg(0x13,rxBuffer,1);
+  /*RX_INTERRUPT_FLAG REGISTER: Write 0*/
+  memcpy(txBuffer, (uint8_t[]){0x08,0x00}, 2);
+  AsciWrite(txBuffer, 2);
+
+  /*RX_INTERRUPT_FLAG REGISTER: Write 0*/
+  memcpy(txBuffer, (uint8_t[]){0x08,0x00}, 2);
+  AsciWrite(txBuffer, 2);
+
+
+  /*RX_INTERRUPT_ENABLE REGISTER: RX_Stop_INT_Enable */
+  memcpy(txBuffer, (uint8_t[]){0x04,0x02}, 2);
+  AsciWrite(txBuffer, 2);
+  /*TX_INTERRUPT_ENABLE REGISTER: Write 0*/
+  memcpy(txBuffer, (uint8_t[]){0x06,0x00}, 2);
+  AsciWrite(txBuffer, 2);
+  /*CONFIGURATION_1 REGISTER:2Mbps*/
+  memcpy(txBuffer, (uint8_t[]){0x0C,0x60}, 2);
+  AsciWrite(txBuffer, 2);
+  /*CONFIGURATION_2 REGISTER:TransmitQueueMode*/
+  memcpy(txBuffer, (uint8_t[]){0x0E,0x10}, 2);
+  AsciWrite(txBuffer, 2);
+  /*CONFIGURATION_3 REGISTER:DOUT_Enable | Keep_Alive 10us*/
+  memcpy(txBuffer, (uint8_t[]){0x10,0x05}, 2);
+  AsciWrite(txBuffer, 2);
+
+
+  memcpy(txBuffer, (uint8_t[]){0x30}, 1);
+  AsciWrite(txBuffer, 1);
+
+  memcpy(txBuffer, (uint8_t[]){0xE0}, 1);
+  AsciWrite(txBuffer, 1);
+
+  memcpy(txBuffer, (uint8_t[]){0x93}, 1);
+  AsciWrite(txBuffer, 1);
+//
+//  //DelayMs(1);
+
+  /*CONFIGURATION_2 REGISTER:TransmitQueueMode*/
+  memcpy(txBuffer, (uint8_t[]){0x0E,0x10}, 2);
+  AsciWrite(txBuffer, 2);
+  /*CONFIGURATION_2 REGISTER:TransmitQueueMode & Transmit Preambles Mode*/
+  memcpy(txBuffer, (uint8_t[]){0x0E,0x30}, 2);
+  AsciWrite(txBuffer, 2);
+
+
+
+
+
+  /*RX_STATUS REGISTER: RX_Empty_Status | RX_Busy_Status*/
+  /*Wait for all UART slave devices to wake up (poll RX_Busy_Status bit)*/
+  //Read RX_Status register (RX_Busy_Status and RX_Empty_Status should be true)
+  //If RX_Status = 21h, continue. Otherwise, repeat transaction until true or timeout.
+  uint32_t timestamp = HAL_GetTick();
+
+  do
+  {
+    AsciReadReg(0x01, rxBuffer, 1);
+    if(HAL_GetTick() - timestamp > 200)
+    {
+      uint8_t bufi[100];
+      AsciReadReg(0x93,bufi, 6);
+
+      memcpy(txBuffer, (uint8_t[]){0x30}, 1);
+      AsciWrite(txBuffer, 1);
+
+      memcpy(txBuffer, (uint8_t[]){0xE0}, 1);
+      AsciWrite(txBuffer, 1);
+
+
+      memcpy(txBuffer, (uint8_t[]){0xC0,0x06,0x04,0x1B,0x00,0x80,0xA2,0x00}, 8);
+      AsciWrite(txBuffer, 8);
+
+      AsciWrite(txBuffer, 1);
+      memcpy(txBuffer, (uint8_t[]){0xB0}, 1);
+      timestamp = HAL_GetTick();
+    }
+
+
+
+  }while(rxBuffer[0]!=0x21);
+
+//
+//
+//  AsciReadReg(0x93,rxBuffer, 6);
+//  memcpy(txBuffer, (uint8_t[]){0x30}, 1);
+//  AsciWrite(txBuffer, 1);
+//
+//  memcpy(txBuffer, (uint8_t[]){0xE0}, 1);
+//  AsciWrite(txBuffer, 1);
+//
+//  timestamp = HAL_GetTick();
+//  do
+//  {
+//    AsciReadReg(0x01, rxBuffer, 1);
+////    if(HAL_GetTick() - timestamp > 1000)
+////      break;
+//  }while(rxBuffer[0]!=0x21);
 
   return 0;
 }
 
+#define RX_STATUS_READ_REG  0x01
 
-uint8_t MaxAsciReadReg(uint8_t regAddr,  uint8_t *readBuffer, uint8_t size)
+#define RX_STATUS_EMPTY     1
+#define RX_STATUS_STOP      2
+#define RX_STATUS_FULL      4
+#define RX_STATUS_OVER      8
+#define RX_STATUS_IDLE      16
+#define RX_STATUS_BUSY      32
+#define RX_STATUS_ERROR     128
+
+#define RX_SPACE_RD_REG     0x1B
+
+#define RX_NXT_MSG_REG      0x93
+#define RX_NXT_PTR_REG      0x9B
+
+#define RX_READ_REG         0x91
+#define RX_READ_PTR_REG     0x97
+
+char String[200];
+char String2[200];
+
+void AsciInit(void)
+{
+  uint8_t rxBuffer[100];
+  uint8_t txBuffer[100];
+
+  /*MODEL REGISTER.First two digits of the Model Number (84h)*/
+  AsciReadReg(0x15,rxBuffer,1);
+  /*VERSION REGISTER Last digit of the Model Number (1h)/Mask revision (2)*/
+  AsciReadReg(0x17,rxBuffer,1);
+  /*FMEA REGISTER:0x00*/
+  AsciReadReg(0x13,rxBuffer,1);
+
+  /*Clear receive buﬀer*/
+  memcpy(txBuffer, (uint8_t[]){0xE0}, 1);
+  AsciWrite(txBuffer, 1);
+}
+
+void AsciTaskCirciualMethod(void)
+{
+  uint8_t msgBuffer[62];
+  uint8_t rxStatus;
+  uint8_t ptrBefore;
+  uint8_t ptrAfter;
+  uint8_t length;
+
+
+
+  AsciReadRegU8(RX_STATUS_READ_REG, &rxStatus);
+
+  if(rxStatus & RX_STATUS_STOP )
+  {
+     AsciReadRegU8(RX_READ_PTR_REG, &ptrBefore);
+     AsciReadReg(RX_NXT_MSG_REG, msgBuffer, sizeof(msgBuffer));
+     AsciReadRegU8(RX_READ_PTR_REG, &ptrAfter);
+
+     if((ptrAfter - ptrBefore) < 0)
+     {
+       length = ptrAfter + (64-ptrBefore);
+     }
+     else
+     {
+       length = ptrAfter - ptrBefore;
+     }
+
+     sprintf(String2,"ptrBefore:%02d, ptrAfter:%02d, value: %s ",ptrBefore,  ptrAfter, StringPlusDataToHexaString(msgBuffer, String, length));
+     DeviceDbgLog(String2);
+  }
+
+  if(rxStatus & RX_STATUS_OVER)
+  {
+    DeviceErrLog("RX_STATUS_OVER");
+  }
+  if(rxStatus & RX_STATUS_ERROR)
+  {
+    DeviceErrLog("RX_STATUS_ERROR");
+  }
+
+}
+void AsciTask(void)
+{
+  uint8_t msgBuffer[62];
+  uint8_t rxStatus;
+  uint8_t ptrBefore;
+  uint8_t ptrAfter;
+
+
+  AsciReadRegU8(RX_STATUS_READ_REG, &rxStatus);
+
+  if(rxStatus & RX_STATUS_STOP )
+  {
+
+    AsciReadRegU8(RX_READ_PTR_REG, &ptrBefore);
+    AsciReadReg(RX_NXT_MSG_REG, msgBuffer, sizeof(msgBuffer));
+    AsciReadRegU8(RX_READ_PTR_REG, &ptrAfter);
+
+    uint32_t reltiveTime = HAL_GetTick() - UartRxTimestamp;
+    UartRxTimestamp = HAL_GetTick();
+    //sprintf(String2,"ptrBefore:%02d, ptrAfter:%02d, value: %s ",ptrBefore,  ptrAfter, StringPlusDataToHexaString(msgBuffer, String, ptrAfter - ptrBefore));
+    sprintf(String2,"R+%06ldms:  %s", reltiveTime, StringPlusDataToHexaString(msgBuffer, String, ptrAfter - ptrBefore));
+    DeviceDbgLog(String2);
+
+    /*Clear Buffer*/
+    AsciWrite((uint8_t[]){0xE0}, 1);
+  }
+
+  if(rxStatus & RX_STATUS_OVER)
+  {
+    DeviceErrLog("RX_STATUS_OVER");
+  }
+  if(rxStatus & RX_STATUS_ERROR)
+  {
+    DeviceErrLog("RX_STATUS_ERROR");
+  }
+
+}
+
+
+uint8_t AsciUartInitSeq(void)
+{
+
+  /*Enable Keep-Alive mode (prior to the UART slave wake-up to prevent shutdown)*/
+  //Write Confguration 3 register
+  //Set keep-alive period to 160µs
+  uint8_t tr1[] = {0x10, 0x05};
+  AsciWrite(tr1, sizeof(tr1));
+
+
+
+#if sdfasf
+  uint8_t trX1[] = {0x00};
+  AsciReadReg(0x09,trX1, sizeof(trX1));
+
+  /*Enable Rx Interrupt ﬂags for RX_Error and RX_Overﬂow*/
+  //Write RX_Interrupt_Enable register
+  //Set the RX_Error_INT_Enable and RX_Overﬂow_INT_Enable bits
+  uint8_t tr2[] = {0x04, 0x88};
+  AsciWrite(tr2, sizeof(tr2));
+
+  /*Clear receive buﬀer*/
+  uint8_t tr3[] = {0xE0};
+  AsciWrite(tr3, sizeof(tr3));
+
+  /*Wake-up UART slave devices (transmit preambles)*/
+  //Write Confguration 2 register
+  //Enable Transmit Preambles mode
+  uint8_t tr4[] = {0x0E, 0x30};
+  AsciWrite(tr4, sizeof(tr4));
+
+
+  uint8_t trX2[] = {0x00};
+  AsciReadReg(0x09, trX2, sizeof(trX2));
+
+  /*Wait for all UART slave devices to wake up (poll RX_Busy_Status bit)*/
+  //Read RX_Status register (RX_Busy_Status and RX_Empty_Status should be true)
+  //If RX_Status = 21h, continue. Otherwise, repeat transaction until true or timeout.
+  uint8_t tr5[1];
+  do
+  {
+    AsciReadReg(0x01, tr5, sizeof(tr5));
+    DelayMs(20);
+  }while(tr5[0]!=0x21);
+
+  /*End of UART slave device wake-up period*/
+  //Write Confguration 2 register
+  //Disable Transmit Preambles mode
+  uint8_t tr6[] = {0x0E, 0x10};
+  AsciWrite(tr6, sizeof(tr6));
+
+  /*Wait for null message to be received (poll RX_Empty_Status bit)*/
+  //Read RX_Status register
+  uint8_t tr7[] = {0x01};
+  AsciWrite(tr7, sizeof(tr7));
+#endif
+
+  /*Clear transmit buﬀer*/
+  uint8_t tr8[] = {0x20};
+  AsciWrite(tr8, sizeof(tr8));
+
+  /*Clear receive buﬀer*/
+  uint8_t tr9[] = {0xE0};
+  AsciWrite(tr9, sizeof(tr9));
+
+  /*Load the HELLOALL command sequence into the load queue*/
+  //WR_LD_Q SPI command byte (write the load queue)
+  //Message length
+  //HELLOALL command byte
+  //Register address (0x00)
+  //Initialization address of HELLOALL
+  uint8_t tr10[] = {0xC0,0x03,0x57,0x00,0x0};
+  AsciWrite(tr10, sizeof(tr10));
+
+  /*Verify contents of the load queue*/
+  //Verify contents of the load queue
+  uint8_t tr11[4];
+  AsciReadReg(0xC1,tr11,sizeof(tr11));
+
+  /*Transmit HELLOALL sequence*/
+  //WR_NXT_LD_Q SPI command byte (write the next load queue)
+  uint8_t tr12[4] = {0xB0};
+  AsciWrite(tr12, sizeof(tr12));
+
+
+  /*Poll RX_Stop_Status bit*/
+  //Read RX_Status register
+  //If RX_Status[1] is true, continue. If false, then repeat transaction until true.
+
+//    uint8_t tr13[1];
+//    do
+//    {
+//      AsciReadReg(0x01, tr13, sizeof(tr13));
+//
+//    }while(tr13[0]!=0x12);
+
+  /*Service receive buﬀer. Read the HELLOALL message that propagated through the daisy-chain and was
+  returned back to the ASCI. The host should verify the device count.*/
+  //RD_NXT_MSG SPI transaction
+  //Sent command byte (HELLOALL)
+  //Sent address = 00h
+  //Returned address = 02h
+  uint8_t tr14[3];
+  AsciReadReg(0x93, tr14, sizeof(tr14));
+
+  /*Check for receive buﬀer errors*/
+  //Read RX_Interrupt_Flags register
+  uint8_t tr15[1];
+  AsciReadReg(0x09, tr15, sizeof(tr15));
+
+
+
+    return 0;
+}
+
+
+uint8_t AsciWrite(uint8_t *writeBuffer, uint8_t size)
 {
   uint8_t status = MAX_ASCI_OK;
-  uint8_t txBuffer[] = {regAddr};
 
   HAL_GPIO_WritePin(MAX_CS_GPIO_Port, MAX_CS_Pin, GPIO_PIN_RESET);
 
-  if(HAL_SPI_Transmit(&hspi2, txBuffer, sizeof(txBuffer), 100)!= HAL_OK)
+  if(HAL_SPI_Transmit(&hspi2, writeBuffer, size, 100)!= HAL_OK)
   {
     status = MAX_ASCI_IO_ERROR;
-  }
-
-  if(HAL_SPI_Receive(&hspi2, readBuffer, size, 100)!= HAL_OK)
-  {
-      status = MAX_ASCI_IO_ERROR;
   }
 
   HAL_GPIO_WritePin(MAX_CS_GPIO_Port, MAX_CS_Pin, GPIO_PIN_SET);
@@ -369,14 +736,47 @@ uint8_t MaxAsciReadReg(uint8_t regAddr,  uint8_t *readBuffer, uint8_t size)
   return status;
 }
 
-void MaxAsciWakeUp(void)
+
+uint8_t AsciReadRegU8(uint8_t regAddr,  uint8_t *byte)
+{
+  return AsciReadReg(regAddr,  byte, 1 );
+
+}
+
+uint8_t AsciReadReg(uint8_t regAddr,  uint8_t *rxBuffer, uint8_t size)
+{
+  uint8_t status = MAX_ASCI_OK;
+  uint8_t txBuffer[size + 1];
+  uint8_t rxTemp[size + 1];
+
+  HAL_GPIO_WritePin(MAX_CS_GPIO_Port, MAX_CS_Pin, GPIO_PIN_RESET);
+
+  memset(txBuffer,0xAA, size + 1);
+  txBuffer[0] = regAddr;
+  if(HAL_SPI_TransmitReceive(&hspi2, txBuffer, rxTemp, size + 1 , 100)!= HAL_OK)
+  {
+    status = MAX_ASCI_IO_ERROR;
+  }
+
+  memcpy(rxBuffer, rxTemp + 1, size);
+
+  HAL_GPIO_WritePin(MAX_CS_GPIO_Port, MAX_CS_Pin, GPIO_PIN_SET);
+
+  return status;
+}
+
+
+
+
+
+void AsciWakeUp(void)
 {
   HAL_GPIO_WritePin(MAX_SHDN_GPIO_Port, MAX_SHDN_Pin, GPIO_PIN_SET);
 }
 
-void MaxAsciShutDown(void)
+void AsciShutDown(void)
 {
-  HAL_GPIO_WritePin(MAX_SHDN_GPIO_Port, MAX_SHDN_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(MAX_SHDN_GPIO_Port, MAX_SHDN_Pin, GPIO_PIN_RESET);
 }
 
 /* LEDs ---------------------------------------------------------------------*/
@@ -389,7 +789,11 @@ void LiveLedOff(void)
 {
   HAL_GPIO_WritePin(LIVE_LED_GPIO_Port, LIVE_LED_Pin, GPIO_PIN_RESET);
 }
-
+/* USB ---------------------------------------------------------------------*/
+void UsbPullUp(void)
+{
+  HAL_GPIO_WritePin(USB_PULL_GPIO_Port, USB_PULL_Pin, GPIO_PIN_SET);
+}
 
 
 /* USER CODE END 4 */
