@@ -17,16 +17,14 @@
   ******************************************************************************
   */
 /* USER CODE END Header */
-
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "usb_device.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include "common.h"
-#include "usbd_cdc_if.h"
+//#include "usbd_cdc_if.h"
 #include "LiveLed.h"
 #include "StringPlus.h"
 /* USER CODE END Includes */
@@ -57,6 +55,8 @@
 /* Private variables ---------------------------------------------------------*/
 SPI_HandleTypeDef hspi2;
 
+UART_HandleTypeDef huart1;
+
 /* USER CODE BEGIN PV */
 LiveLED_HnadleTypeDef hLiveLed;
 uint32_t UartRxTimestamp;
@@ -67,6 +67,7 @@ uint32_t UartRxTimestamp;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI2_Init(void);
+static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
 void LiveLedOff(void);
 void LiveLedOn(void);
@@ -122,7 +123,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_SPI2_Init();
-  MX_USB_DEVICE_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 
   DelayMs(500);
@@ -142,10 +143,6 @@ int main(void)
 
   DeviceUsrLog("Manufacturer:%s, Name:%s, Version:%04X",DEVICE_MNF, DEVICE_NAME, DEVICE_FW);
 
-AsciShutDown();
-DelayMs(100);
-AsciWakeUp();
-DelayMs(100);
 
 UartRxTimestamp = HAL_GetTick();
 
@@ -162,7 +159,7 @@ UartRxTimestamp = HAL_GetTick();
 
     /* USER CODE BEGIN 3 */
     LiveLedTask(&hLiveLed);
-    CDC_Task_FS();
+   // CDC_Task_FS();
     //TestVcpTask();
     AsciTask();
   }
@@ -177,9 +174,9 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
-  /** Initializes the CPU, AHB and APB busses clocks 
+  /** Initializes the RCC Oscillators according to the specified parameters
+  * in the RCC_OscInitTypeDef structure.
   */
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
@@ -192,7 +189,7 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  /** Initializes the CPU, AHB and APB busses clocks 
+  /** Initializes the CPU, AHB and APB buses clocks
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
@@ -202,12 +199,6 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB;
-  PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_PLL_DIV1_5;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
   }
@@ -252,6 +243,39 @@ static void MX_SPI2_Init(void)
 }
 
 /**
+  * @brief USART1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART1_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART1_Init 0 */
+
+  /* USER CODE END USART1_Init 0 */
+
+  /* USER CODE BEGIN USART1_Init 1 */
+
+  /* USER CODE END USART1_Init 1 */
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 115200;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART1_Init 2 */
+
+  /* USER CODE END USART1_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -261,26 +285,32 @@ static void MX_GPIO_Init(void)
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LIVE_LED_GPIO_Port, LIVE_LED_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, LIVE_LED_Pin|LED_R_Pin|LED_L_Pin|LED_G_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(EEP_ON_GPIO_Port, EEP_ON_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(MAX_CS_GPIO_Port, MAX_CS_Pin, GPIO_PIN_SET);
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, MAX_SHDN_Pin|USB_PULL_Pin, GPIO_PIN_SET);
-
-  /*Configure GPIO pin : LIVE_LED_Pin */
-  GPIO_InitStruct.Pin = LIVE_LED_Pin;
+  /*Configure GPIO pins : LIVE_LED_Pin LED_R_Pin LED_L_Pin LED_G_Pin */
+  GPIO_InitStruct.Pin = LIVE_LED_Pin|LED_R_Pin|LED_L_Pin|LED_G_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LIVE_LED_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : EEP_ON_Pin */
+  GPIO_InitStruct.Pin = EEP_ON_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(EEP_ON_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : MAX_CS_Pin */
   GPIO_InitStruct.Pin = MAX_CS_Pin;
@@ -294,20 +324,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(MAX_INT_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : MAX_SHDN_Pin */
-  GPIO_InitStruct.Pin = MAX_SHDN_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  HAL_GPIO_Init(MAX_SHDN_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : USB_PULL_Pin */
-  GPIO_InitStruct.Pin = USB_PULL_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  HAL_GPIO_Init(USB_PULL_GPIO_Port, &GPIO_InitStruct);
 
 }
 
@@ -330,33 +346,10 @@ static void MX_GPIO_Init(void)
 
 int _write(int file, char *ptr, int len)
 {
-  CDC_Transmit_FS((uint8_t*)ptr, len);
   return len;
 }
 
-void TestVcpTask(void)
-{
-  static int32_t timestamp;
-  static uint64_t counter = 0;
-  if(HAL_GetTick() - timestamp >= 1000)
-  {
-    timestamp = HAL_GetTick();
 
-    char test_sentence[80] = {"Hello World"};
-    sprintf(test_sentence, "%s %lld\r\n", test_sentence,counter++);
-
-    strcpy(UsbdUart.TxLine,test_sentence);
-    printf(test_sentence);
-    UsbdUart.TxCounter++;
-
-    if(UsbdUart.RxRequest)
-    {
-      printf("%s\r\n",UsbdUart.RxLine);
-      UsbdUart.RxRequest = 0;
-      UsbdUart.TxCounter++;
-    }
-  }
-}
 /* MAX ASCI -----------------------------------------------------------------*/
 
 uint8_t AsciGetModel(void)
@@ -768,17 +761,6 @@ uint8_t AsciReadReg(uint8_t regAddr,  uint8_t *rxBuffer, uint8_t size)
 
 
 
-
-void AsciWakeUp(void)
-{
-  HAL_GPIO_WritePin(MAX_SHDN_GPIO_Port, MAX_SHDN_Pin, GPIO_PIN_SET);
-}
-
-void AsciShutDown(void)
-{
-  HAL_GPIO_WritePin(MAX_SHDN_GPIO_Port, MAX_SHDN_Pin, GPIO_PIN_RESET);
-}
-
 /* LEDs ---------------------------------------------------------------------*/
 void LiveLedOn(void)
 {
@@ -792,7 +774,7 @@ void LiveLedOff(void)
 /* USB ---------------------------------------------------------------------*/
 void UsbPullUp(void)
 {
-  HAL_GPIO_WritePin(USB_PULL_GPIO_Port, USB_PULL_Pin, GPIO_PIN_SET);
+ // HAL_GPIO_WritePin(USB_PULL_GPIO_Port, USB_PULL_Pin, GPIO_PIN_SET);
 }
 
 
@@ -819,7 +801,7 @@ void Error_Handler(void)
   * @retval None
   */
 void assert_failed(uint8_t *file, uint32_t line)
-{ 
+{
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,
      tex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */

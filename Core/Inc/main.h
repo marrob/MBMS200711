@@ -87,16 +87,20 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define LIVE_LED_Pin GPIO_PIN_13
-#define LIVE_LED_GPIO_Port GPIOC
+#define LIVE_LED_Pin GPIO_PIN_6
+#define LIVE_LED_GPIO_Port GPIOA
+#define EEP_ON_Pin GPIO_PIN_2
+#define EEP_ON_GPIO_Port GPIOB
 #define MAX_CS_Pin GPIO_PIN_12
 #define MAX_CS_GPIO_Port GPIOB
 #define MAX_INT_Pin GPIO_PIN_8
 #define MAX_INT_GPIO_Port GPIOA
-#define MAX_SHDN_Pin GPIO_PIN_9
-#define MAX_SHDN_GPIO_Port GPIOA
-#define USB_PULL_Pin GPIO_PIN_15
-#define USB_PULL_GPIO_Port GPIOA
+#define LED_R_Pin GPIO_PIN_11
+#define LED_R_GPIO_Port GPIOA
+#define LED_L_Pin GPIO_PIN_12
+#define LED_L_GPIO_Port GPIOA
+#define LED_G_Pin GPIO_PIN_15
+#define LED_G_GPIO_Port GPIOA
 /* USER CODE BEGIN Private defines */
 
 #define DEVICE_FW           0x200720

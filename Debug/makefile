@@ -1,5 +1,6 @@
 ################################################################################
 # Automatically-generated file. Do not edit!
+# Toolchain: GNU Tools for STM32 (9-2020-q2-update)
 ################################################################################
 
 -include ../makefile.init
@@ -8,10 +9,6 @@ RM := rm -rf
 
 # All of the sources participating in the build are defined here
 -include sources.mk
--include USB_DEVICE/Target/subdir.mk
--include USB_DEVICE/App/subdir.mk
--include Middlewares/ST/STM32_USB_Device_Library/Core/Src/subdir.mk
--include Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Src/subdir.mk
 -include Drivers/STM32F1xx_HAL_Driver/Src/subdir.mk
 -include Drivers/LED/subdir.mk
 -include Drivers/Common/Src/subdir.mk
@@ -33,6 +30,12 @@ endif
 endif
 
 -include ../makefile.defs
+
+OPTIONAL_TOOL_DEPS := \
+$(wildcard ../makefile.defs) \
+$(wildcard ../makefile.init) \
+$(wildcard ../makefile.targets) \
+
 
 BUILD_ARTIFACT_NAME := MBMS200711
 BUILD_ARTIFACT_EXTENSION := elf
@@ -60,22 +63,22 @@ all: main-build
 main-build: MBMS200711.elf secondary-outputs
 
 # Tool invocations
-MBMS200711.elf: $(OBJS) $(USER_OBJS) D:\@@@!ProjectS\MFWL130221\STM32CubeIDE\MBMS200711\STM32F103C8TX_FLASH.ld
+MBMS200711.elf: $(OBJS) $(USER_OBJS) D:\@@@!ProjectS\MFWL130221\STM32CubeIDE\MBMS200711\STM32F103C8TX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	arm-none-eabi-gcc -o "MBMS200711.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"D:\@@@!ProjectS\MFWL130221\STM32CubeIDE\MBMS200711\STM32F103C8TX_FLASH.ld" --specs=nosys.specs -Wl,-Map="MBMS200711.map" -Wl,--gc-sections -static  -mfloat-abi=soft -mthumb -u _printf_float -u _scanf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
-default.size.stdout: $(EXECUTABLES)
+default.size.stdout: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	arm-none-eabi-size  $(EXECUTABLES)
 	@echo 'Finished building: $@'
 	@echo ' '
 
-MBMS200711.list: $(EXECUTABLES)
+MBMS200711.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "MBMS200711.list"
 	@echo 'Finished building: $@'
 	@echo ' '
 
-MBMS200711.bin: $(EXECUTABLES)
+MBMS200711.bin: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	arm-none-eabi-objcopy  -O binary $(EXECUTABLES) "MBMS200711.bin"
 	@echo 'Finished building: $@'
 	@echo ' '
