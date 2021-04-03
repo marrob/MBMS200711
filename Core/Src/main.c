@@ -74,12 +74,11 @@ void LiveLedOn(void);
 void TestVcpTask(void);
 
 uint8_t AsciGetModel();
-void AsciWakeUp(void);
-void AsciShutDown(void);
 uint8_t AsciReadReg(uint8_t regAddr,  uint8_t *rxBuffer, uint8_t size);
 uint8_t AsciWrite(uint8_t *writeBuffer, uint8_t size);
 uint8_t AsciUartInitSeq(void);
 uint8_t AsciUartInitSeq2(void);
+uint8_t AsciUartInitSeq3(void);
 void UsbPullUp(void);
 void AsciTask(void);
 uint8_t AsciReadRegU8(uint8_t regAddr,  uint8_t *byte);
@@ -128,8 +127,6 @@ int main(void)
 
   DelayMs(500);
 
-  UsbPullUp();
-
 
   printf(VT100_CLEARSCREEN);
   printf(VT100_CURSORHOME);
@@ -146,9 +143,10 @@ int main(void)
 
 UartRxTimestamp = HAL_GetTick();
 
-//  AsciGetModel();
- // AsciUartInitSeq();
-  //AsciUartInitSeq2();
+  //AsciGetModel();
+ //AsciUartInitSeq();
+ // AsciUartInitSeq2();
+AsciUartInitSeq3();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -159,9 +157,8 @@ UartRxTimestamp = HAL_GetTick();
 
     /* USER CODE BEGIN 3 */
     LiveLedTask(&hLiveLed);
-   // CDC_Task_FS();
-    //TestVcpTask();
-    AsciTask();
+  //  AsciGetModel();
+   //AsciTask();
   }
   /* USER CODE END 3 */
 }
@@ -227,7 +224,7 @@ static void MX_SPI2_Init(void)
   hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -337,17 +334,17 @@ static void MX_GPIO_Init(void)
 //    ITM_SendChar((*ptr++));
 //  return len;
 //}
-//
-//int _write(int file, char *ptr, int len)
-//{
-//  HAL_UART_Transmit(&huart1, (uint8_t*)ptr, len, 100);
-//  return len;
-//}
 
 int _write(int file, char *ptr, int len)
 {
+  HAL_UART_Transmit(&huart1, (uint8_t*)ptr, len, 100);
   return len;
 }
+
+//int _write(int file, char *ptr, int len)
+//{
+//  return len;
+//}
 
 
 /* MAX ASCI -----------------------------------------------------------------*/
@@ -595,6 +592,111 @@ void AsciTask(void)
   }
 
 }
+uint8_t AsciUartInitSeq3(void)
+{
+  uint8_t rxBuff[16];
+  uint8_t txBuff[16];
+
+
+  memset(rxBuff,0x00, sizeof(rxBuff));
+  AsciReadReg(0x09,rxBuff,1);
+  sprintf(String2,"Read Tx Interrupt Register:0x%02X",rxBuff[0]);
+  DeviceDbgLog(String2);
+
+  memset(rxBuff,0x00, sizeof(rxBuff));
+  AsciReadReg(0x15,rxBuff,1);
+  sprintf(String2,"Read Model Register:0x%02X",rxBuff[0]);
+  DeviceDbgLog(String2);
+
+  memset(rxBuff,0x00, sizeof(rxBuff));
+  AsciReadReg(0x17,rxBuff,1);
+  sprintf(String2,"Read Version Register:0x%02X",rxBuff[0]);
+  DeviceDbgLog(String2);
+
+  memset(rxBuff,0x00, sizeof(rxBuff));
+  AsciReadReg(0x13,rxBuff,1);
+  sprintf(String2,"Read FEMA Register:0x%02X",rxBuff[0]);
+  DeviceDbgLog(String2);
+
+  memcpy(txBuff, (uint8_t[]){0x08,0x00}, 2);
+  AsciWrite(txBuff, 2);
+
+  memcpy(txBuff, (uint8_t[]){0x08,0x00}, 2);
+  AsciWrite(txBuff, 2);
+
+  memcpy(txBuff, (uint8_t[]){0x04,0x02}, 2);
+  AsciWrite(txBuff, 2);
+
+  memcpy(txBuff, (uint8_t[]){0x06,0x00}, 2);
+  AsciWrite(txBuff, 2);
+
+  memcpy(txBuff, (uint8_t[]){0xC0,0x60}, 2);
+  AsciWrite(txBuff, 2);
+
+  memcpy(txBuff, (uint8_t[]){0x0E,0x10}, 2);
+  AsciWrite(txBuff, 2);
+
+  memcpy(txBuff, (uint8_t[]){0x10,0x05}, 2);
+  AsciWrite(txBuff, 2);
+
+  memcpy(txBuff, (uint8_t[]){0x30}, 1);
+  AsciWrite(txBuff, 1);
+
+  memcpy(txBuff, (uint8_t[]){0xE0}, 1);
+  AsciWrite(txBuff, 1);
+
+  memcpy(txBuff, (uint8_t[]){0x93}, 1);
+  AsciWrite(txBuff, 1);
+
+  int16_t i=0;
+  do
+  {
+    AsciReadReg(0x01, rxBuff, 1);
+    sprintf(String2,"%03d Read RX_Status:0x%02X",i,rxBuff[0]);
+    DeviceDbgLog(String2);
+    i++;
+}while(rxBuff[0]!=0x21 && i < 100);
+
+
+
+  memcpy(txBuff, (uint8_t[]){0x30}, 1);
+  AsciWrite(txBuff, 1);
+
+  memcpy(txBuff, (uint8_t[]){0xE0}, 1);
+  AsciWrite(txBuff, 1);
+
+  memcpy(txBuff, (uint8_t[]){0xC0,0x03,0x57,0x00,0x00}, 5);
+  AsciWrite(txBuff, 5);
+
+  memcpy(txBuff, (uint8_t[]){0xB0}, 1);
+  AsciWrite(txBuff, 1);
+
+  memcpy(txBuff, (uint8_t[]){0x30}, 1);
+  AsciWrite(txBuff, 1);
+
+  memcpy(txBuff, (uint8_t[]){0xE0}, 1);
+  AsciWrite(txBuff, 1);
+
+  memcpy(txBuff, (uint8_t[]){0xC0,0x07,0x04,0x1B,0x00,0x80,0xA2,0x00,0x00}, 9);
+  AsciWrite(txBuff, 9);
+
+  memcpy(txBuff, (uint8_t[]){0xB0}, 1);
+  AsciWrite(txBuff, 1);
+
+  i=0;
+  do
+  {
+    AsciReadReg(0x01, rxBuff, 1);
+    sprintf(String2,"%03d Read RX_Status:0x%02X",i,rxBuff[0]);
+    DeviceDbgLog(String2);
+    i++;
+    DelayMs(10);
+}while(rxBuff[0]!=0x21 && i < 1000);
+
+
+
+  return 0;
+}
 
 
 uint8_t AsciUartInitSeq(void)
@@ -607,10 +709,11 @@ uint8_t AsciUartInitSeq(void)
   AsciWrite(tr1, sizeof(tr1));
 
 
+/**
 
-#if sdfasf
   uint8_t trX1[] = {0x00};
   AsciReadReg(0x09,trX1, sizeof(trX1));
+*/
 
   /*Enable Rx Interrupt ﬂags for RX_Error and RX_Overﬂow*/
   //Write RX_Interrupt_Enable register
@@ -629,9 +732,10 @@ uint8_t AsciUartInitSeq(void)
   AsciWrite(tr4, sizeof(tr4));
 
 
+  /*
   uint8_t trX2[] = {0x00};
   AsciReadReg(0x09, trX2, sizeof(trX2));
-
+*/
   /*Wait for all UART slave devices to wake up (poll RX_Busy_Status bit)*/
   //Read RX_Status register (RX_Busy_Status and RX_Empty_Status should be true)
   //If RX_Status = 21h, continue. Otherwise, repeat transaction until true or timeout.
@@ -641,7 +745,7 @@ uint8_t AsciUartInitSeq(void)
     AsciReadReg(0x01, tr5, sizeof(tr5));
     DelayMs(20);
   }while(tr5[0]!=0x21);
-
+#if sdfasf
   /*End of UART slave device wake-up period*/
   //Write Confguration 2 register
   //Disable Transmit Preambles mode
@@ -686,12 +790,12 @@ uint8_t AsciUartInitSeq(void)
   //Read RX_Status register
   //If RX_Status[1] is true, continue. If false, then repeat transaction until true.
 
-//    uint8_t tr13[1];
-//    do
-//    {
-//      AsciReadReg(0x01, tr13, sizeof(tr13));
-//
-//    }while(tr13[0]!=0x12);
+    uint8_t tr13[1];
+    do
+    {
+      AsciReadReg(0x01, tr13, sizeof(tr13));
+
+    }while(tr13[0]!=0x12);
 
   /*Service receive buﬀer. Read the HELLOALL message that propagated through the daisy-chain and was
   returned back to the ASCI. The host should verify the device count.*/
@@ -771,11 +875,7 @@ void LiveLedOff(void)
 {
   HAL_GPIO_WritePin(LIVE_LED_GPIO_Port, LIVE_LED_Pin, GPIO_PIN_RESET);
 }
-/* USB ---------------------------------------------------------------------*/
-void UsbPullUp(void)
-{
- // HAL_GPIO_WritePin(USB_PULL_GPIO_Port, USB_PULL_Pin, GPIO_PIN_SET);
-}
+
 
 
 /* USER CODE END 4 */
