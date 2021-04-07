@@ -10,31 +10,36 @@
 #define SRC_ASCI_H_
 /* Includes ------------------------------------------------------------------*/
 #include <stdint.h>
+#include "vt100.h"
 #include <stm32f1xx_hal.h>
+#include "StringPlus.h"
 /* Private define ------------------------------------------------------------*/
-#define MAX_ASCI_MODEL    0x15
-#define MAX_ASCI_VERSION  0x17
+#define ASCI_MODEL    0x15
+#define ASCI_VERSION  0x17
 
-#define MAX_ASCI_OK       0x00
-#define MAX_ASCI_IO_ERROR 0x01
+#define ASCI_OK             0x00
+#define ASCI_IO_ERROR       0x01
+#define ASCI_TIMEOUT_ERROR  0x02
+
+#define ASCI_RX_TIMEOUT_CYCLE 1000
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
- #define DEVICE_DEBUG_LEVEL    3
+ #define ASCI_DEBUG_LEVEL    3
 
 
 #if (ASCI_DEBUG_LEVEL > 0)
-#define  DeviceUsrLog(...)  {printf(__VA_ARGS__);\
+#define AsciUsrLog(...)     {printf(__VA_ARGS__);\
                              printf("\r\n");}
 #else
 #define DeviceUsrLog(...)
 #endif
 
-#if (DEVICE_DEBUG_LEVEL > 1)
+#if (ASCI_DEBUG_LEVEL > 1)
 
-#define  DeviceErrLog(...)  {printf(VT100_ATTR_RED);\
-                             printf("ERROR.DEVICE:") ;\
+#define  AsciErrLog(...)    {printf(VT100_ATTR_RED);\
+                             printf("ERROR.ASCI:") ;\
                              printf(__VA_ARGS__);\
                              printf(VT100_ATTR_RESET);\
                              printf("\r\n");}
@@ -42,14 +47,14 @@
 #define DeviceErrLog(...)
 #endif
 
-#if (DEVICE_DEBUG_LEVEL > 2)
-#define  DeviceDbgLog(...)  {printf(VT100_ATTR_YELLOW);\
-                             printf("DEBUG.DEVICE:") ;\
+#if (ASCI_DEBUG_LEVEL > 2)
+#define  AsciDbgLog(...)    {printf(VT100_ATTR_YELLOW);\
+                             printf("DEBUG.ASCI:") ;\
                              printf(__VA_ARGS__);\
                              printf(VT100_ATTR_RESET);\
                              printf("\r\n");}
 #else
-#define DeviceDbgLog(...)
+#define AsciDbgLog(...)
 #endif
 /* USER CODE END EM */
 
@@ -58,8 +63,10 @@ uint8_t AsciIoWrite(uint8_t *writeBuffer, uint8_t size);
 uint8_t AsciIoReadRegU8(uint8_t regAddr,  uint8_t *byte);
 uint8_t AsciIoReadReg(uint8_t regAddr,  uint8_t *rxBuffer, uint8_t size);
 uint8_t AsciIoGetModel(void);
+uint8_t AsciIoWriteRead(uint8_t *tx, uint8_t tx_size, uint8_t *rx, uint8_t rx_size);
 
 uint8_t AsciAdapterInit(void);
+void AsciAdapterTask(void);
 
 
 #endif /* SRC_ASCI_H_ */

@@ -29,7 +29,8 @@ extern "C" {
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f1xx_hal.h"
-
+#include <stdio.h>
+#include "vt100.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -117,19 +118,8 @@ extern SPI_HandleTypeDef hspi2;
 
 
 /* VT100 ---------------------------------------------------------------------*/
-/*
- * https://www.csie.ntu.edu.tw/~r92094/c++/VT100.html
- * http://www.termsys.demon.co.uk/vtansi.htm
- */
-#define VT100_CLEARSCREEN   "\033[2J"
-#define VT100_CURSORHOME    "\033[H"
-#define VT100_ATTR_RESET    "\033[0m"
-#define VT100_ATTR_RED      "\033[31m"
-#define VT100_ATTR_GREEN    "\033[32m"
-#define VT100_ATTR_YELLOW   "\033[33m"
-#define VT100_CUP(__v__,__h__)    ("\033["__v__";"__h__"H") /*Cursor Position*/
-/* USER CODE END Private defines */
 
+/* USER CODE END Private defines */
 #ifdef __cplusplus
 }
 #endif

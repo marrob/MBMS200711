@@ -1,9 +1,32 @@
-commands:
-0x57:HELLOALL
+Tulajdonságok:
+- Preambles:bevezető üzenet, ez ébreszti fel a szlavet, az üzent kódólva van
+- A TX queue 7bájt mély.( framben jelezni kell a hoszt, ezért nem mindig használja ki a teljes 7 bájtot), de egybefüggő is lehet.
+- Ha az Tx üzenet hosszabb mint 6bájt akkor beszúr D3 és C2 bájtot
+- Daisy Chain Bus
+- Az kiküldött üzeteket vissza haljuk.
+- A HELLOALL utasítással inicalizálódik a busz, a válaszok számából lehet következtetni az eszközök számára
+
+---
+2 Fajta parancs tipus:
+
+- SPI parancsok (ezek parancsok a ASCI bridge-nek szólnak) iráskor az első bájt mindig a parancsbájt
+pl:
+  0xC0-WR_LD_Q -> irás a tx queue-ba
+  0x93-RD_NXT_MSG -> a következő üzenet olvasása az rx queue-ből
+  
+- UART parancsok (ezek a slave eszközöknek szóló parancsok)
+pl:
+0x57:HELLOALL -> minden eszköz egyedi cimet kap, a válaszban benne lesz a cim
 0x02:WRITEALL
 0x03:READALL
 0x04 | DA: WRITEDEVICE
 ---
+
+
+Egy write -> Read tranzakció menete:
+
+
+
 
 DIN:DOUT
 Ez egy minta tranzakció,
@@ -15,6 +38,9 @@ Ez egy minta tranzakció,
 0x80:0x00 -> MS byte of register date to be written
 0xA2:0x00 -> PEC byte
 0x00:0x00 -> Alive counter
+
+
+
 
 
 -------------------------------------------------

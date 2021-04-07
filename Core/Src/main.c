@@ -22,7 +22,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include <stdio.h>
+
 #include "common.h"
 #include "LiveLed.h"
 #include "StringPlus.h"

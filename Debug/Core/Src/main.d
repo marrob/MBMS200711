@@ -23,8 +23,9 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_spi.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h \
- ../Drivers/Common/Inc/common.h ../Drivers/LED/LiveLed.h \
- ../Drivers/Common/Inc/StringPlus.h ../Core/Inc/asci.h
+ ../Drivers/Common/Inc/vt100.h ../Drivers/Common/Inc/common.h \
+ ../Drivers/LED/LiveLed.h ../Drivers/Common/Inc/StringPlus.h \
+ ../Core/Inc/asci.h
 
 ../Core/Inc/main.h:
 
@@ -75,6 +76,8 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_spi.h:
 
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h:
+
+../Drivers/Common/Inc/vt100.h:
 
 ../Drivers/Common/Inc/common.h:
 
