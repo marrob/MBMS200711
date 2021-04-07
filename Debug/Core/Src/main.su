@@ -1,9 +1,9 @@
 main.c:79:5:main	8	static
-main.c:149:6:SystemClock_Config	72	static
-main.c:188:13:MX_SPI2_Init	8	static
-main.c:226:13:MX_USART1_UART_Init	8	static
-main.c:259:13:MX_GPIO_Init	40	static
-main.c:317:5:_write	24	static
-main.c:334:6:LiveLedOn	8	static
-main.c:339:6:LiveLedOff	8	static
-main.c:352:6:Error_Handler	4	static
+main.c:150:6:SystemClock_Config	72	static
+main.c:189:13:MX_SPI2_Init	8	static
+main.c:227:13:MX_USART1_UART_Init	8	static
+main.c:260:13:MX_GPIO_Init	40	static
+main.c:318:5:_write	24	static
+main.c:335:6:LiveLedOn	8	static
+main.c:340:6:LiveLedOff	8	static
+main.c:353:6:Error_Handler	4	static

@@ -1,11 +1,13 @@
 Tulajdonságok:
+- Ha a slave felébredt, akkor kb 2mA-es áram mérhető a 12-es cellán.
 - Preambles:bevezető üzenet, ez ébreszti fel a szlavet, az üzent kódólva van
 - A TX queue 7bájt mély.( framben jelezni kell a hoszt, ezért nem mindig használja ki a teljes 7 bájtot), de egybefüggő is lehet.
 - Ha az Tx üzenet hosszabb mint 6bájt akkor beszúr D3 és C2 bájtot
 - Daisy Chain Bus
 - Az kiküldött üzeteket vissza haljuk.
 - A HELLOALL utasítással inicalizálódik a busz, a válaszok számából lehet következtetni az eszközök számára
-
+- Ha van slave a buszon, akkor az RX_Busy_Status bit időközönként 1-be áll, ha nincs akkor elveszett a busz.
+- ujra inditás után néhe meglepően sokat kell várni és ekkor a Rx_Status 0x11
 ---
 2 Fajta parancs tipus:
 

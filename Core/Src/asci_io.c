@@ -71,7 +71,9 @@ uint8_t AsciIoWriteRead(uint8_t *tx, uint8_t tx_size, uint8_t *rx, uint8_t rx_si
 
   memset(rxBuff,0x00, sizeof(rxBuff));
 
-  //Enable Transmit Preambles mode
+  //A0x30-nak nincs dokumentálva a funkciója
+  //Ez sztm 0x20-nak kellene lennie
+  //Clear transmit buffer
   memcpy(txBuff, (uint8_t[]){0x30}, 1);
   AsciIoWrite(txBuff, 1);
 
@@ -94,7 +96,9 @@ uint8_t AsciIoWriteRead(uint8_t *tx, uint8_t tx_size, uint8_t *rx, uint8_t rx_si
   memcpy(txBuff, (uint8_t[]){0xB0}, 1);
   AsciIoWrite(txBuff, 1);
 
+
   //Poll Rx_Stop_Status bit
+  //Ha jött be üzenet, akkor a Rx_Stop-ot jelez
   int16_t i=0;
   do
   {
@@ -102,7 +106,7 @@ uint8_t AsciIoWriteRead(uint8_t *tx, uint8_t tx_size, uint8_t *rx, uint8_t rx_si
     sprintf(strBuff,"%03d Read RX_Status:0x%02X",i,rxBuff[0]);
     AsciDbgLog(strBuff);
     i++;
-  }while(rxBuff[0]!=0x21 && i < ASCI_RX_TIMEOUT_CYCLE);
+  }while(rxBuff[0]!=0x12 && i < ASCI_RX_TIMEOUT_CYCLE);
 
   if(i >= ASCI_RX_TIMEOUT_CYCLE){
     AsciErrLog("Timeout.");
