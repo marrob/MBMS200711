@@ -1,3 +1,6 @@
+"Core/Src/asci_adapter.o"
+"Core/Src/asci_io.o"
+"Core/Src/asci_spy.o"
 "Core/Src/main.o"
 "Core/Src/stm32f1xx_hal_msp.o"
 "Core/Src/stm32f1xx_it.o"
