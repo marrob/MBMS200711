@@ -103,18 +103,21 @@ uint8_t AsciAdapterInit(void)
 
 
  //HELLOALL - Eslő inditás után ez itt timoeutra fog futni
- AsciIoWriteRead((uint8_t[]){0xC0,0x03,0x57,0x00,0x00}, 5, NULL,0);
+ AsciIoUartWriteRead((uint8_t[]){0xC0,0x03,0x57,0x00,0x00}, 5, rxBuff,10);
 
 
  //meg kell mondani hová teszem hurkot, ennélkül nem válaszol
  //első inditás után timeoutra fog futni
- AsciIoWriteRead((uint8_t[]){0xC0,0x07,0x04,0x1B,0x00,0x80,0xA2,0x00,0x00},9, NULL,0);
+ AsciIoUartWriteRead((uint8_t[]){0xC0,0x07,0x04,0x1B,0x00,0x80,0xA2,0x00,0x00},9, rxBuff, 10);
 
  //HELLO
  //Erre már válaszol mivel kiépült a hurok
- AsciIoWriteRead((uint8_t[]){0xC0,0x03,0x57,0x00,0x00}, 5, NULL,0);
+ AsciIoUartWriteRead((uint8_t[]){0xC0,0x03,0x57,0x00,0x00}, 5, rxBuff,10);
 
 
+ AsciIoUartWriteRead((uint8_t[]){0xC0,0x06,0x02,0x12,0xB1, 0xB2, 0xC4, 0x00}, 8, rxBuff,10);
+
+ AsciIoUartWriteRead((uint8_t[]){0xC0,0x05,0x03,0x12,0x00, 0xB2, 0xCB}, 7, rxBuff,20);
 
   return 0;
 }
@@ -135,6 +138,12 @@ void AsciAdapterTask(void){
    {
      sprintf(strBuff,"%03d Read RX_Status:0x%02X", i++,rxBuff[0]);
      AsciDbgLog(strBuff);
+
+     //Receive
+     memset(rxBuff,0x00, sizeof(rxBuff));
+     AsciIoReadReg(0x93, rxBuff,10);
+     StringPlusDataToHexaString(rxBuff,strBuff, 10);
+     AsciUsrLog("Read from Rx queue:%s",strBuff);
    }
 
 }

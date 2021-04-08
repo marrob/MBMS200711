@@ -126,6 +126,7 @@ int main(void)
 
 UartRxTimestamp = HAL_GetTick();
 
+AsciIoPEC_CalcTest();
 AsciAdapterInit();
 
   /* USER CODE END 2 */

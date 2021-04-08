@@ -63,7 +63,11 @@ uint8_t AsciIoWrite(uint8_t *writeBuffer, uint8_t size);
 uint8_t AsciIoReadRegU8(uint8_t regAddr,  uint8_t *byte);
 uint8_t AsciIoReadReg(uint8_t regAddr,  uint8_t *rxBuffer, uint8_t size);
 uint8_t AsciIoGetModel(void);
-uint8_t AsciIoWriteRead(uint8_t *tx, uint8_t tx_size, uint8_t *rx, uint8_t rx_size);
+
+void AsciIoPEC_CalcTest(void);
+uint8_t AsciIoPEC(uint8_t *data, uint8_t size, uint8_t crc);
+
+uint8_t AsciIoUartWriteRead(uint8_t *tx, uint8_t tx_size, uint8_t *rx, uint8_t rx_size);
 
 uint8_t AsciAdapterInit(void);
 void AsciAdapterTask(void);
