@@ -16,10 +16,13 @@
 /* Private define ------------------------------------------------------------*/
 #define ASCI_MODEL    0x15
 #define ASCI_VERSION  0x17
+#define ASCI_TX_BUFFER_SIZE 28
+#define ASCI_RX_BUFFER_SIZE 62
 
-#define ASCI_OK             0x00
-#define ASCI_IO_ERROR       0x01
-#define ASCI_TIMEOUT_ERROR  0x02
+#define ASCI_OK                 0x00
+#define ASCI_IO_ERROR           0x01
+#define ASCI_TIMEOUT_ERROR      0x02
+#define ASCI_LOAD_VERIFY_ERROR  0x03
 
 #define ASCI_RX_TIMEOUT_CYCLE 1000
 /* Exported types ------------------------------------------------------------*/
@@ -65,13 +68,15 @@ uint8_t AsciIoReadReg(uint8_t regAddr,  uint8_t *rxBuffer, uint8_t size);
 uint8_t AsciIoGetModel(void);
 
 void AsciIoPEC_CalcTest(void);
-uint8_t AsciIoPEC(uint8_t *data, uint8_t size, uint8_t crc);
+
 
 uint8_t AsciIoUartWriteRead(uint8_t *tx, uint8_t tx_size, uint8_t *rx, uint8_t rx_size);
+uint8_t AsciIoSlaveReadReg(uint8_t slave, uint8_t regAddr, uint8_t slaveCnt, uint8_t *rx, uint8_t size);
 
 uint8_t AsciAdapterInit(void);
 void AsciAdapterTask(void);
 
+uint8_t AsciIoWriteSlaveReg(uint8_t slave, uint8_t regAddr, uint16_t value );
 
 #endif /* SRC_ASCI_H_ */
 

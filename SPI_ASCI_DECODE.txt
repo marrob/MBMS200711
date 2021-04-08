@@ -29,7 +29,7 @@ Egy irás SPI buszon keresztűl az UART-ra
 SPI cmd | msg length | UART cmd(reg addres) | LSB|MSB | PEC | Alive
 
 Egy olvasás az SPI  buszon keresztűl az UART-ról
-SPI cmd | msg length (ennyit kell olvasni ha rövidebb lesz akkor) 
+SPI cmd | msg length + 2bájt * szlévek száma (ennyit kell olvasni)|Uart cmd(0x03)| Slave.reg.addr| Data Chec seed |PEC| Alive seed|
 
 
 DIN:DOUT

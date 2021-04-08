@@ -22,8 +22,9 @@
 /* Private user code ---------------------------------------------------------*/
 uint8_t AsciAdapterInit(void)
 {
-  uint8_t rxBuff[16];
-  uint8_t txBuff[16];
+  uint8_t txBuff[ASCI_TX_BUFFER_SIZE];
+  uint8_t rxBuff[ASCI_RX_BUFFER_SIZE];
+  uint8_t slaveCnt = 1;
 
   memset(rxBuff,0x00, sizeof(rxBuff));
   AsciIoReadReg(0x09,rxBuff,1);
@@ -115,9 +116,18 @@ uint8_t AsciAdapterInit(void)
  AsciIoUartWriteRead((uint8_t[]){0xC0,0x03,0x57,0x00,0x00}, 5, rxBuff,10);
 
 
- AsciIoUartWriteRead((uint8_t[]){0xC0,0x06,0x02,0x12,0xB1, 0xB2, 0xC4, 0x00}, 8, rxBuff,10);
 
- AsciIoUartWriteRead((uint8_t[]){0xC0,0x05,0x03,0x12,0x00, 0xB2, 0xCB}, 7, rxBuff,20);
+
+ //AsciIoUartWriteRead((uint8_t[]){0xC0,0x06,0x02,0x12,0xB1, 0xB2, 0xC4, 0x00}, 8, rxBuff,10);
+ AsciIoWriteSlaveReg(0x00, 0x12, 0xB3FF);
+
+
+ //AsciIoUartWriteRead((uint8_t[]){0xC0,0x05,0x03,0x12,0x00, 0xB2, 0xCB}, 7, rxBuff,20);
+ AsciIoSlaveReadReg(0x00, 0x12,0x01,rxBuff, 5 + 2 * slaveCnt);
+
+ AsciIoSlaveReadReg(0x00, 0x20,0x01,rxBuff, 5 + 2 * slaveCnt);
+
+ AsciIoSlaveReadReg(0x00, 0x00,0x01,rxBuff, 5 + 2 * slaveCnt);
 
   return 0;
 }

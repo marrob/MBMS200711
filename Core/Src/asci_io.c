@@ -10,65 +10,62 @@
 #include <string.h>
 #include "asci.h"
 #include "main.h"
+#include "string.h"
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 char strBuff[80];
 uint32_t transaction;
 /* Private function prototypes -----------------------------------------------*/
+uint8_t PEC_calc(uint8_t *data, uint8_t size, uint8_t crc);
 /* Private user code ---------------------------------------------------------*/
 
-uint8_t AsciIoWrite(uint8_t *writeBuffer, uint8_t size)
-{
-  uint8_t status = ASCI_OK;
 
-  HAL_GPIO_WritePin(MAX_CS_GPIO_Port, MAX_CS_Pin, GPIO_PIN_RESET);
+#define UART_CMD_WRITEALL 0x02
+#define UART_CMD_READALL 0x03
+#define SPI_CMD_WR_LD_Q 0xC0
+#define WRITE_REG_HEADER_SIZE 2
 
-  if(HAL_SPI_Transmit(&hspi2, writeBuffer, size, 100)!= HAL_OK)
-  {
-    status = ASCI_IO_ERROR;
+uint8_t AsciIoWriteSlaveReg(uint8_t slave, uint8_t regAddr, uint16_t value ){
+  uint8_t rxBuff[ASCI_RX_BUFFER_SIZE];
+
+  //Egy irás SPI buszon keresztűl az UART-ra
+  //SPI cmd | msg length | UART cmd(reg addres) | LSB|MSB | PEC | Alive
+  uint8_t data[] = {SPI_CMD_WR_LD_Q, 0x06, UART_CMD_WRITEALL, regAddr, value & 0xFF, value >>8, 0x00, 0x00};
+  uint8_t pec = PEC_calc(data + WRITE_REG_HEADER_SIZE, 4, 0);
+  data[6] = pec;
+  AsciIoUartWriteRead(data,sizeof(data), rxBuff,sizeof(data) - WRITE_REG_HEADER_SIZE);
+
+  if( memcmp(data + 2, rxBuff, 6 ) !=0 ){
+    AsciErrLog("AsciIoWriteSlaveReg:ASCI_LOAD_VERIFY_ERROR");
+    return ASCI_LOAD_VERIFY_ERROR;
   }
-
-  HAL_GPIO_WritePin(MAX_CS_GPIO_Port, MAX_CS_Pin, GPIO_PIN_SET);
-
-  return status;
+  return ASCI_OK;
 }
 
 
-uint8_t AsciIoReadRegU8(uint8_t regAddr,  uint8_t *byte)
-{
-  return AsciIoReadReg(regAddr,  byte, 1 );
+
+uint8_t AsciIoSlaveReadReg(uint8_t slave, uint8_t regAddr, uint8_t slaveCnt, uint8_t *rx, uint8_t size){
+
+  //Egy olvasás az SPI  buszon keresztűl az UART-ról
+  //SPI cmd | msg length + 2bájt * szlévek száma (ennyit kell olvasni)|Uart cmd(0x03)| Slave.reg.addr| Data Chec seed |PEC| Alive seed|
+  uint8_t data[] = {SPI_CMD_WR_LD_Q, 5 + slaveCnt * 2, UART_CMD_READALL, regAddr,0x00, 0x00, 0x00};
+  uint8_t pec = PEC_calc(data + WRITE_REG_HEADER_SIZE, 3, 0);
+  data[5] = pec;
+  AsciIoUartWriteRead(data,sizeof(data), rx, size);
+
+
+//TODO: PEC check
+
+  return ASCI_OK;
+
 }
-
-uint8_t AsciIoReadReg(uint8_t regAddr,  uint8_t *rxBuffer, uint8_t size)
-{
-  uint8_t status = ASCI_OK;
-  uint8_t txBuffer[size + 1];
-  uint8_t rxTemp[size + 1];
-
-  HAL_GPIO_WritePin(MAX_CS_GPIO_Port, MAX_CS_Pin, GPIO_PIN_RESET);
-
-  memset(txBuffer,0xAA, size + 1);
-  txBuffer[0] = regAddr;
-  if(HAL_SPI_TransmitReceive(&hspi2, txBuffer, rxTemp, size + 1 , 100)!= HAL_OK)
-  {
-    status = ASCI_IO_ERROR;
-  }
-
-  memcpy(rxBuffer, rxTemp + 1, size);
-
-  HAL_GPIO_WritePin(MAX_CS_GPIO_Port, MAX_CS_Pin, GPIO_PIN_SET);
-
-  return status;
-}
-
-
 
 
 uint8_t AsciIoUartWriteRead(uint8_t *tx, uint8_t tx_size, uint8_t *rx, uint8_t rx_size){
 
-  uint8_t txBuff[28];
-  uint8_t rxBuff[62];
+  uint8_t txBuff[ASCI_TX_BUFFER_SIZE];
+  uint8_t rxBuff[ASCI_RX_BUFFER_SIZE];
 
   transaction++;
 
@@ -98,7 +95,6 @@ uint8_t AsciIoUartWriteRead(uint8_t *tx, uint8_t tx_size, uint8_t *rx, uint8_t r
   //Transmitt
   memcpy(txBuff, (uint8_t[]){0xB0}, 1);
   AsciIoWrite(txBuff, 1);
-
 
   //Poll Rx_Stop_Status bit
   //Ha jött be üzenet az Rx Queue-ba, akkor Rx_Stop-ot jelez
@@ -153,12 +149,14 @@ uint8_t AsciIoGetModel(void)
 
 
 void AsciIoPEC_CalcTest(void){
-  DeviceDbgLog( "PEC for 0x03,0x12,0x00: 0x%02X (expected: 0xCB)", AsciIoPEC((uint8_t[]){0x03,0x12,0x00}, 3, 0x00));
-  DeviceDbgLog( "PEC for 0x02,0x12,0xB1,0xB2: 0x%02X (expected: 0xC4)", AsciIoPEC((uint8_t[]){0x02,0x12,0xB1,0xB2}, 4, 0x00));
+  DeviceDbgLog( "PEC for 0x03,0x12,0x00: 0x%02X (expected: 0xCB)",
+                PEC_calc((uint8_t[]){0x03,0x12,0x00}, 3, 0x00));
+  DeviceDbgLog( "PEC for 0x02,0x12,0xB1,0xB2: 0x%02X (expected: 0xC4)",
+                PEC_calc((uint8_t[]){0x02,0x12,0xB1,0xB2}, 4, 0x00));
 
 }
 
-uint8_t AsciIoPEC(uint8_t *data, uint8_t size, uint8_t crc)
+uint8_t PEC_calc(uint8_t *data, uint8_t size, uint8_t crc)
 {
   // CRCByte is initialized to 0 for each ByteList in this implementation, where
   // ByteList contains all bytes of a single command. It is passed into the
@@ -176,7 +174,7 @@ uint8_t AsciIoPEC(uint8_t *data, uint8_t size, uint8_t crc)
     crc = crc ^ data[byte];
     //Process each of the 8 CRCByte remainder bits
 
-    for(uint8_t bit = 0; bit <=7; bit++)
+    for(uint8_t bit = 0; bit < 8; bit++)
     {
       // The LSb should be shifted toward the highest order polynomial
       // coefficient. This is a right shift for data stored LSb to the right
@@ -209,11 +207,36 @@ uint8_t AsciIoPEC(uint8_t *data, uint8_t size, uint8_t crc)
   // All calculations done; CRCByte value is the CRC byte for ByteList() and
   // the initial CRCByte value
   //Return CRCByte
-
   return crc;
 }
 
+uint8_t AsciIoWrite(uint8_t *writeBuffer, uint8_t size)
+{
+  uint8_t status = ASCI_OK;
+  HAL_GPIO_WritePin(MAX_CS_GPIO_Port, MAX_CS_Pin, GPIO_PIN_RESET);
+  if(HAL_SPI_Transmit(&hspi2, writeBuffer, size, 100)!= HAL_OK)
+    status = ASCI_IO_ERROR;
+  HAL_GPIO_WritePin(MAX_CS_GPIO_Port, MAX_CS_Pin, GPIO_PIN_SET);
+  return status;
+}
 
+
+uint8_t AsciIoReadReg(uint8_t regAddr, uint8_t *rxBuffer, uint8_t size)
+{
+  uint8_t status = ASCI_OK;
+  uint8_t txBuffer[size + 1];
+  uint8_t rxTemp[size + 1];
+
+  HAL_GPIO_WritePin(MAX_CS_GPIO_Port, MAX_CS_Pin, GPIO_PIN_RESET);
+  memset(txBuffer,0xAA, size + 1);
+  txBuffer[0] = regAddr;
+  if(HAL_SPI_TransmitReceive(&hspi2, txBuffer, rxTemp, size + 1 , 100)!= HAL_OK)
+    status = ASCI_IO_ERROR;
+  memcpy(rxBuffer, rxTemp + 1, size);
+  HAL_GPIO_WritePin(MAX_CS_GPIO_Port, MAX_CS_Pin, GPIO_PIN_SET);
+
+  return status;
+}
 
 
 
