@@ -74,7 +74,7 @@ uint8_t AsciIoWriteRead(uint8_t *tx, uint8_t tx_size, uint8_t *rx, uint8_t rx_si
   //A0x30-nak nincs dokumentálva a funkciója
   //Ez sztm 0x20-nak kellene lennie
   //Clear transmit buffer
-  memcpy(txBuff, (uint8_t[]){0x30}, 1);
+  memcpy(txBuff, (uint8_t[]){0x20}, 1);
   AsciIoWrite(txBuff, 1);
 
   //Clear receive buffer

@@ -71,7 +71,7 @@ uint8_t AsciAdapterInit(void)
   //A 0x30-nak nincs dokumentálva a funkciója
   //Ez sztm 0x20-nak kellene lennie
   //Clear transmit buffer
-  memcpy(txBuff, (uint8_t[]){0x30}, 1);
+  memcpy(txBuff, (uint8_t[]){0x20}, 1);
   AsciIoWrite(txBuff, 1);
 
   //Clear receive buffer
@@ -121,11 +121,17 @@ uint8_t AsciAdapterInit(void)
 
 void AsciAdapterTask(void){
 
-  //Ha van slave a buszon, akkor az RX_Busy_Status bit időközönként 1-be áll (0x21),
-  //ha nincs akkor elveszett a busz.
+
    static uint16_t i=0;
    AsciIoReadReg(0x01, rxBuff, 1);
    if(rxBuff[0]==0x21)
+   {
+     //Ha van slave a buszon és zárt a hurok, akkor az RX_Busy_Status bit időközönként 1-be áll (0x21),
+     //ha nincs akkor elveszett a busz.
+     //sprintf(strBuff,"%03d Read RX_Status:0x%02X", i++,rxBuff[0]);
+     //AsciDbgLog(strBuff);
+   }
+   else if(rxBuff[0]==0x12)
    {
      sprintf(strBuff,"%03d Read RX_Status:0x%02X", i++,rxBuff[0]);
      AsciDbgLog(strBuff);

@@ -138,7 +138,7 @@ AsciAdapterInit();
 
     /* USER CODE BEGIN 3 */
     LiveLedTask(&hLiveLed);
-   // AsciAdapterTask();
+    AsciAdapterTask();
   }
   /* USER CODE END 3 */
 }
