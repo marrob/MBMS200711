@@ -25,7 +25,37 @@
 #define ASCI_LOAD_VERIFY_ERROR  0x03
 #define ASCI_PEC_ERROR          0x04
 
-#define ASCI_RX_TIMEOUT_CYCLE 1000
+#define ASCI_RX_TIMEOUT_CYCLE   1000
+
+#define SPI_CMD_WR_LD_Q         0xC0
+#define SPI_CMD_RD_NXT_MSG      0x93
+
+#define MASTER_REG_RD_MODEL     0x15
+
+#define UART_CMD_HELLOALL       0x57
+#define UART_CMD_WRITEALL       0x02
+#define UART_CMD_READALL        0x03
+#define UART_CMD_WRITEDEVICE    0x04
+#define UART_CMD_READDEVICE     0x05
+
+#define SLAVE_REG_VERSION       0x00
+#define SLAVE_REG_ADDRESS       0x01
+#define SLAVE_REG_STATUS        0x02
+#define SLAVE_REG_FMEA1         0x03
+#define SLAVE_REG_ALRTOVCELL    0x05
+#define SLAVE_REG_DEVCFG1       0x10
+#define SLAVE_REG_SCANCTRL      0x13
+#define SLAVE_REG_ACQCFG        0x19
+#define SLAVE_REG_BALSWEN       0x1A
+#define SLAVE_REG_DEVCFG2       0x1B
+#define SLAVE_REG_CELL1         0x20
+#define SLAVE_REG_CELL6         0x25
+#define SLAVE_REG_CELL11        0x2A
+#define SLAVE_REG_OVTHSET       0x42
+#define SLAVE_REG_DIAG          0x50
+#define SLAVE_REG_ADCTEST1B     0x58
+
+
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/
 /* Exported macro ------------------------------------------------------------*/

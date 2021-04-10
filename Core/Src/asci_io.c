@@ -21,26 +21,26 @@ uint8_t PEC_calc(uint8_t *data, uint8_t size, uint8_t crc);
 /* Private user code ---------------------------------------------------------*/
 
 
-#define UART_CMD_WRITEALL 0x02
-#define UART_CMD_READALL 0x03
-#define SPI_CMD_WR_LD_Q 0xC0
-#define WRITE_REG_HEADER_SIZE 2
+
 
 uint8_t AsciIoWriteSlaveReg(uint8_t slave, uint8_t regAddr, uint16_t value ){
 
   uint8_t status = ASCI_OK;
   uint8_t rxBuff[ASCI_RX_BUFFER_SIZE];
+
   //Egy irás SPI buszon keresztűl az UART-ra
   //SPI cmd | msg length | UART cmd(reg addres) | LSB|MSB | PEC | Alive
   uint8_t data[] = {SPI_CMD_WR_LD_Q, 0x06, UART_CMD_WRITEALL, regAddr, value & 0xFF, value >>8, 0x00, 0x00};
-  uint8_t pec = PEC_calc(data + WRITE_REG_HEADER_SIZE, 4, 0);
+  uint8_t pec = PEC_calc(data + 2, 4, 0);
   data[6] = pec;
-  if((status=AsciIoUartWriteRead(data,sizeof(data), rxBuff,sizeof(data) - WRITE_REG_HEADER_SIZE))!=ASCI_OK)
+  memset(rxBuff, 0xCC, ASCI_RX_BUFFER_SIZE);
+  if((status=AsciIoUartWriteRead(data,sizeof(data), rxBuff,sizeof(data) - 2))!=ASCI_OK)
   {
     AsciErrLog("AsciIoWriteSlaveReg.AsciIoUartWriteRead.Error:0x%02X", status);
     return status;
   }
-  if(memcmp(data + 2, rxBuff, 6 ) !=0 ){
+  if(memcmp(data + 2, rxBuff, 5 ) !=0 ){
+    //TODO: az alive countert nem ellenörzöm, ez jelzi hányan nyugtázták az üzenetet
     AsciErrLog("AsciIoWriteSlaveReg:ASCI_LOAD_VERIFY_ERROR");
     return ASCI_LOAD_VERIFY_ERROR;
   }
@@ -55,8 +55,7 @@ uint8_t AsciIoSlaveReadReg(uint8_t slave, uint8_t regAddr, uint8_t *rx, uint8_t 
   //Egy olvasás az SPI  buszon keresztűl az UART-ról
   //SPI cmd | msg length + 2bájt * szlévek száma (ennyit kell olvasni)|Uart cmd(0x03)| Slave.reg.addr| Data Chec seed |PEC| Alive seed|
   uint8_t data[] = {SPI_CMD_WR_LD_Q, size, UART_CMD_READALL, regAddr,0x00, 0x00, 0x00};
-  uint8_t txPEC = PEC_calc(data + WRITE_REG_HEADER_SIZE, 3, 0);
-  data[5] = txPEC;
+  data[5]= PEC_calc(data + 2, 3, 0);
   if((status = AsciIoUartWriteRead(data,sizeof(data), rx, size))!= ASCI_OK){
     AsciErrLog("AsciIoSlaveReadReg.AsciIoUartWriteRead.Error:0x%02X", status);
     return status;
@@ -95,8 +94,8 @@ uint8_t AsciIoUartWriteRead(uint8_t *tx, uint8_t txSize, uint8_t *rx, uint8_t rx
 
   //Load sequence into Tx queue
   AsciIoWrite(tx, txSize);
-  StringPlusDataToHexaString(tx,strBuff, txSize);
-  AsciUsrLog("TR:%04ld-Load:%s",transaction,strBuff);
+  //StringPlusDataToHexaString(tx,strBuff, txSize);
+  //AsciUsrLog("TR:%04ld-Load:%s",transaction,strBuff);
 
   //Verify content of the load queue
   memset(rxBuff,0x00, sizeof(rxBuff));
@@ -104,7 +103,7 @@ uint8_t AsciIoUartWriteRead(uint8_t *tx, uint8_t txSize, uint8_t *rx, uint8_t rx
 
   if(memcmp(tx + 1, rxBuff, txSize-1)!=0){
     StringPlusDataToHexaString(rxBuff,strBuff, txSize-1);
-    AsciUsrLog("TR:%04ld-Verify:%s",transaction, strBuff);
+    AsciErrLog("TR:%04ld-Verify:%s",transaction, strBuff);
     return ASCI_LOAD_VERIFY_ERROR;
   }
 
@@ -133,9 +132,12 @@ uint8_t AsciIoUartWriteRead(uint8_t *tx, uint8_t txSize, uint8_t *rx, uint8_t rx
   {
     //Receive
     memset(rx,0xCC, rxSize);
-    AsciIoReadReg(0x93, rx, rxSize);
+    AsciIoReadReg(SPI_CMD_RD_NXT_MSG, rx, rxSize);
     StringPlusDataToHexaString(rx,strBuff, rxSize);
-    AsciUsrLog("TR:%04ld-Read:%s", transaction, strBuff);
+    //AsciUsrLog("TR:%04ld-Read:%s", transaction, strBuff);
+  }else
+  {
+    AsciErrLog("rx buffer is NULL");
   }
 
   //Check for receive buffer errors
@@ -144,7 +146,7 @@ uint8_t AsciIoUartWriteRead(uint8_t *tx, uint8_t txSize, uint8_t *rx, uint8_t rx
   if(rxBuff[0]!=0  && rxBuff[0]!=0x02 )
     AsciErrLog("TR:%04ld-Receive Buffer Error, 0x%02X",transaction,rxBuff[0]);
 
-  AsciUsrLog("TR:%04ld--- Completed ---",transaction);
+  //AsciUsrLog("TR:%04ld--- Completed ---",transaction);
 
   return ASCI_OK;
 }

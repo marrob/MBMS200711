@@ -6,7 +6,10 @@ Tulajdonságok:
 - Daisy Chain Bus
 - Az kiküldött üzeteket vissza haljuk.
 - A HELLOALL utasítással inicalizálódik a busz, a válaszok számából lehet következtetni az eszközök számára
-- Ha van slave a buszon, akkor az RX_Busy_Status bit időközönként 1-be áll, ha nincs akkor elveszett a busz.
+  ***A HELLOALL vissza adja az eszközök számát.
+  ***Ha internal loopback-et használunk akkor az első HELLOALL nem adja vissza a slavek számát.
+    Ha a hoszt ismeri a szlavek számát akkor célzottan be tudja állitani a loopback-et
+ - Ha van slave a buszon, akkor az RX_Busy_Status bit időközönként 1-be áll, ha nincs akkor elveszett a busz
 - ujra inditás után néhe meglepően sokat kell várni és ekkor a Rx_Status 0x11
 ---
 2 Fajta parancs tipus:
@@ -21,7 +24,8 @@ pl:
 0x57:HELLOALL -> minden eszköz egyedi cimet kap, a válaszban benne lesz a cim
 0x02:WRITEALL
 0x03:READALL
-0x04 | DA: WRITEDEVICE
+0x04:Write Device - DA[4:0]|0b100
+0x05:Read Device - DA[4:0]|0b101
 ---
 
 
