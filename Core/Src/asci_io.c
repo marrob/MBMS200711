@@ -27,16 +27,20 @@ uint8_t PEC_calc(uint8_t *data, uint8_t size, uint8_t crc);
 #define WRITE_REG_HEADER_SIZE 2
 
 uint8_t AsciIoWriteSlaveReg(uint8_t slave, uint8_t regAddr, uint16_t value ){
-  uint8_t rxBuff[ASCI_RX_BUFFER_SIZE];
 
+  uint8_t status = ASCI_OK;
+  uint8_t rxBuff[ASCI_RX_BUFFER_SIZE];
   //Egy irás SPI buszon keresztűl az UART-ra
   //SPI cmd | msg length | UART cmd(reg addres) | LSB|MSB | PEC | Alive
   uint8_t data[] = {SPI_CMD_WR_LD_Q, 0x06, UART_CMD_WRITEALL, regAddr, value & 0xFF, value >>8, 0x00, 0x00};
   uint8_t pec = PEC_calc(data + WRITE_REG_HEADER_SIZE, 4, 0);
   data[6] = pec;
-  AsciIoUartWriteRead(data,sizeof(data), rxBuff,sizeof(data) - WRITE_REG_HEADER_SIZE);
-
-  if( memcmp(data + 2, rxBuff, 6 ) !=0 ){
+  if((status=AsciIoUartWriteRead(data,sizeof(data), rxBuff,sizeof(data) - WRITE_REG_HEADER_SIZE))!=ASCI_OK)
+  {
+    AsciErrLog("AsciIoWriteSlaveReg.AsciIoUartWriteRead.Error:0x%02X", status);
+    return status;
+  }
+  if(memcmp(data + 2, rxBuff, 6 ) !=0 ){
     AsciErrLog("AsciIoWriteSlaveReg:ASCI_LOAD_VERIFY_ERROR");
     return ASCI_LOAD_VERIFY_ERROR;
   }
@@ -45,24 +49,32 @@ uint8_t AsciIoWriteSlaveReg(uint8_t slave, uint8_t regAddr, uint16_t value ){
 
 
 
-uint8_t AsciIoSlaveReadReg(uint8_t slave, uint8_t regAddr, uint8_t slaveCnt, uint8_t *rx, uint8_t size){
+uint8_t AsciIoSlaveReadReg(uint8_t slave, uint8_t regAddr, uint8_t *rx, uint8_t size){
 
+  uint8_t status = ASCI_OK;
   //Egy olvasás az SPI  buszon keresztűl az UART-ról
   //SPI cmd | msg length + 2bájt * szlévek száma (ennyit kell olvasni)|Uart cmd(0x03)| Slave.reg.addr| Data Chec seed |PEC| Alive seed|
-  uint8_t data[] = {SPI_CMD_WR_LD_Q, 5 + slaveCnt * 2, UART_CMD_READALL, regAddr,0x00, 0x00, 0x00};
-  uint8_t pec = PEC_calc(data + WRITE_REG_HEADER_SIZE, 3, 0);
-  data[5] = pec;
-  AsciIoUartWriteRead(data,sizeof(data), rx, size);
+  uint8_t data[] = {SPI_CMD_WR_LD_Q, size, UART_CMD_READALL, regAddr,0x00, 0x00, 0x00};
+  uint8_t txPEC = PEC_calc(data + WRITE_REG_HEADER_SIZE, 3, 0);
+  data[5] = txPEC;
+  if((status = AsciIoUartWriteRead(data,sizeof(data), rx, size))!= ASCI_OK){
+    AsciErrLog("AsciIoSlaveReadReg.AsciIoUartWriteRead.Error:0x%02X", status);
+    return status;
+  }
 
-
-//TODO: PEC check
+  uint8_t rxPEC = rx[size - 2];
+  uint8_t calcRxPEC =  PEC_calc(rx,size-2, 0);
+  if(rxPEC != calcRxPEC){
+    AsciErrLog("AsciIoSlaveReadReg rxPEC:0x%02X calcRxPEC:0x%02X", rxPEC, calcRxPEC);
+    return ASCI_PEC_ERROR;
+  }
 
   return ASCI_OK;
 
 }
 
 
-uint8_t AsciIoUartWriteRead(uint8_t *tx, uint8_t tx_size, uint8_t *rx, uint8_t rx_size){
+uint8_t AsciIoUartWriteRead(uint8_t *tx, uint8_t txSize, uint8_t *rx, uint8_t rxSize){
 
   uint8_t txBuff[ASCI_TX_BUFFER_SIZE];
   uint8_t rxBuff[ASCI_RX_BUFFER_SIZE];
@@ -82,15 +94,19 @@ uint8_t AsciIoUartWriteRead(uint8_t *tx, uint8_t tx_size, uint8_t *rx, uint8_t r
   AsciIoWrite(txBuff, 1);
 
   //Load sequence into Tx queue
-  AsciIoWrite(tx, tx_size);
-  StringPlusDataToHexaString(tx,strBuff, tx_size);
+  AsciIoWrite(tx, txSize);
+  StringPlusDataToHexaString(tx,strBuff, txSize);
   AsciUsrLog("TR:%04ld-Load:%s",transaction,strBuff);
 
   //Verify content of the load queue
   memset(rxBuff,0x00, sizeof(rxBuff));
-  AsciIoReadReg(0xC1, rxBuff, tx_size-1);
-  StringPlusDataToHexaString(rxBuff,strBuff, tx_size-1);
-  AsciUsrLog("TR:%04ld-Verify:%s",transaction, strBuff);
+  AsciIoReadReg(0xC1, rxBuff, txSize-1);
+
+  if(memcmp(tx + 1, rxBuff, txSize-1)!=0){
+    StringPlusDataToHexaString(rxBuff,strBuff, txSize-1);
+    AsciUsrLog("TR:%04ld-Verify:%s",transaction, strBuff);
+    return ASCI_LOAD_VERIFY_ERROR;
+  }
 
   //Transmitt
   memcpy(txBuff, (uint8_t[]){0xB0}, 1);
@@ -116,10 +132,10 @@ uint8_t AsciIoUartWriteRead(uint8_t *tx, uint8_t tx_size, uint8_t *rx, uint8_t r
   if(rx != NULL)
   {
     //Receive
-    memset(rx,0xCC, rx_size);
-    AsciIoReadReg(0x93, rx, rx_size);
-    StringPlusDataToHexaString(rx,strBuff, rx_size);
-    AsciUsrLog("TR:%04ld-Read:%s",transaction,strBuff);
+    memset(rx,0xCC, rxSize);
+    AsciIoReadReg(0x93, rx, rxSize);
+    StringPlusDataToHexaString(rx,strBuff, rxSize);
+    AsciUsrLog("TR:%04ld-Read:%s", transaction, strBuff);
   }
 
   //Check for receive buffer errors
@@ -131,20 +147,6 @@ uint8_t AsciIoUartWriteRead(uint8_t *tx, uint8_t tx_size, uint8_t *rx, uint8_t r
   AsciUsrLog("TR:%04ld--- Completed ---",transaction);
 
   return ASCI_OK;
-}
-
-
-
-uint8_t AsciIoGetModel(void)
-{
-
-  uint8_t modelNumber[] = {0}; /*Defult is 0x84*/
-  AsciIoReadReg(ASCI_MODEL, modelNumber, sizeof(modelNumber));
-  DeviceDbgLog("Model Number 0x%02X", modelNumber[0]);
-  uint8_t versionNumber[] = {0}; /*Defult is 0x12*/
-  AsciIoReadReg(ASCI_VERSION, versionNumber, sizeof(versionNumber));
-  DeviceDbgLog("Version Number 0x%02X", versionNumber[0]);
-  return 0;
 }
 
 

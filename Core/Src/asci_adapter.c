@@ -123,11 +123,19 @@ uint8_t AsciAdapterInit(void)
 
 
  //AsciIoUartWriteRead((uint8_t[]){0xC0,0x05,0x03,0x12,0x00, 0xB2, 0xCB}, 7, rxBuff,20);
- AsciIoSlaveReadReg(0x00, 0x12,0x01,rxBuff, 5 + 2 * slaveCnt);
+ AsciIoSlaveReadReg(0x00, 0x12,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
 
- AsciIoSlaveReadReg(0x00, 0x20,0x01,rxBuff, 5 + 2 * slaveCnt);
+ AsciIoSlaveReadReg(0x00, 0x20,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
 
- AsciIoSlaveReadReg(0x00, 0x00,0x01,rxBuff, 5 + 2 * slaveCnt);
+
+ AsciIoSlaveReadReg(0x00, 0x00,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
+ AsciDbgLog("Slave VERSION Reg: 0x%04X", rxBuff[3]<<8|rxBuff[2]);
+
+ AsciIoSlaveReadReg(0x00, 0x01,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
+ AsciDbgLog("Slave ADDRESS Reg: 0x%04X", rxBuff[3]<<8|rxBuff[2]);
+
+ AsciIoSlaveReadReg(0x00, 0x02,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
+ AsciDbgLog("Slave STATUS Reg: 0x%04X", rxBuff[3]<<8|rxBuff[2]);
 
   return 0;
 }

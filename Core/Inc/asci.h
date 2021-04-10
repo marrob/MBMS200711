@@ -23,11 +23,14 @@
 #define ASCI_IO_ERROR           0x01
 #define ASCI_TIMEOUT_ERROR      0x02
 #define ASCI_LOAD_VERIFY_ERROR  0x03
+#define ASCI_PEC_ERROR          0x04
 
 #define ASCI_RX_TIMEOUT_CYCLE 1000
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/
 /* Exported macro ------------------------------------------------------------*/
+#define SLAVE_RD_BUFFER_SIZE(SlaveCount)  (5 + (SlaveCount) * 2)
+
 /* USER CODE BEGIN EM */
  #define ASCI_DEBUG_LEVEL    3
 
@@ -71,7 +74,7 @@ void AsciIoPEC_CalcTest(void);
 
 
 uint8_t AsciIoUartWriteRead(uint8_t *tx, uint8_t tx_size, uint8_t *rx, uint8_t rx_size);
-uint8_t AsciIoSlaveReadReg(uint8_t slave, uint8_t regAddr, uint8_t slaveCnt, uint8_t *rx, uint8_t size);
+uint8_t AsciIoSlaveReadReg(uint8_t slave, uint8_t regAddr, uint8_t *rx, uint8_t size);
 
 uint8_t AsciAdapterInit(void);
 void AsciAdapterTask(void);
