@@ -44,16 +44,34 @@
 #define SLAVE_REG_FMEA1         0x03
 #define SLAVE_REG_ALRTOVCELL    0x05
 #define SLAVE_REG_DEVCFG1       0x10
+#define SLAVE_REG_MEASUREEN     0x12
 #define SLAVE_REG_SCANCTRL      0x13
 #define SLAVE_REG_ACQCFG        0x19
 #define SLAVE_REG_BALSWEN       0x1A
 #define SLAVE_REG_DEVCFG2       0x1B
 #define SLAVE_REG_CELL1         0x20
+#define SLAVE_REG_CELL2         0x21
+#define SLAVE_REG_CELL3         0x22
+#define SLAVE_REG_CELL4         0x23
+#define SLAVE_REG_CELL5         0x24
 #define SLAVE_REG_CELL6         0x25
+#define SLAVE_REG_CELL7         0x26
+#define SLAVE_REG_CELL8         0x27
+#define SLAVE_REG_CELL9         0x28
+#define SLAVE_REG_CELL10        0x29
 #define SLAVE_REG_CELL11        0x2A
+#define SLAVE_REG_CELL12        0x2B
+#define SLAVE_REG_BLOCK         0x2C
+#define SLAVE_REG_AUXIN1        0x2D
+#define SLAVE_REG_AUXIN2        0x2E
+#define SLAVE_REG_TOTAL         0x2F
 #define SLAVE_REG_OVTHSET       0x42
 #define SLAVE_REG_DIAG          0x50
+#define SLAVE_REG_DIAGCFG       0x51
 #define SLAVE_REG_ADCTEST1B     0x58
+
+#define ADC_VREF_VOLT         305.176E-6
+
 
 
 /* Exported types ------------------------------------------------------------*/
@@ -101,6 +119,8 @@ uint8_t AsciIoReadReg(uint8_t regAddr,  uint8_t *rxBuffer, uint8_t size);
 uint8_t AsciIoGetModel(void);
 
 void AsciIoPEC_CalcTest(void);
+
+double ConvertMeasData(uint8_t *buffer);
 
 
 uint8_t AsciIoUartWriteRead(uint8_t *tx, uint8_t tx_size, uint8_t *rx, uint8_t rx_size);

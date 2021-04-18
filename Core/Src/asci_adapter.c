@@ -100,7 +100,7 @@ uint8_t AsciAdapterInit(void)
     //Első futás kor amig nincs hurok, ez itt hibára fog futni
     AsciErrLog("Timeout.");
   }
-  AsciDbgLog("Master init completed");
+  AsciDbgLog("Master-MAX17841B init completed.");
 
 
  //HELLOALL - Eslő inditás után ez itt timoeutra fog futni
@@ -118,52 +118,86 @@ uint8_t AsciAdapterInit(void)
  //Erre már válaszol mivel kiépült a hurok
  AsciIoUartWriteRead((uint8_t[]){SPI_CMD_WR_LD_Q,0x03,UART_CMD_HELLOALL,0x00,0x00}, 5, rxBuff,10);
 
-
+ //--- Salve VERSION ADDRESS ---
  AsciIoSlaveReadReg(0x00, SLAVE_REG_VERSION,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
  AsciDbgLog("Slave VERSION Reg: 0x%04X", rxBuff[3]<<8|rxBuff[2]);
-
  AsciIoSlaveReadReg(0x00, SLAVE_REG_ADDRESS,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
  AsciDbgLog("Slave ADDRESS Reg: 0x%04X", rxBuff[3]<<8|rxBuff[2]);
 
+
+ //--- Status Read-Reset-Read ---
+ AsciIoSlaveReadReg(0x00, SLAVE_REG_STATUS,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
+ AsciDbgLog("Slave STATUS Reg: 0x%04X", rxBuff[3]<<8|rxBuff[2]);
+ AsciIoWriteSlaveReg(0x00,SLAVE_REG_STATUS,0x0000);
  AsciIoSlaveReadReg(0x00, SLAVE_REG_STATUS,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
  AsciDbgLog("Slave STATUS Reg: 0x%04X", rxBuff[3]<<8|rxBuff[2]);
 
- AsciIoWriteSlaveReg(0x00,SLAVE_REG_DEVCFG1,0x0040); //0x40
- AsciIoWriteSlaveReg(0x00,SLAVE_REG_SCANCTRL,0x0000);
- AsciIoWriteSlaveReg(0x00,SLAVE_REG_ACQCFG,0x0300);
- AsciIoWriteSlaveReg(0x00,SLAVE_REG_OVTHSET,0xFFFC);
- AsciIoWriteSlaveReg(0x00,SLAVE_REG_ADCTEST1B,0x07F0);
-
- //---
+ //--- FEMA1 Read-Reset-Read ---
  AsciIoSlaveReadReg(0x00, SLAVE_REG_FMEA1,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
  AsciDbgLog("Slave FMEA1 Reg: 0x%04X", rxBuff[3]<<8|rxBuff[2]);
-
  AsciIoWriteSlaveReg(0x00,SLAVE_REG_FMEA1,0x0000);
-
  AsciIoSlaveReadReg(0x00, SLAVE_REG_FMEA1,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
  AsciDbgLog("Slave FMEA1 Reg: 0x%04X", rxBuff[3]<<8|rxBuff[2]);
- //---
-
  AsciIoWriteSlaveReg(0x00,SLAVE_REG_BALSWEN,0x0000);
 
- AsciIoSlaveReadReg(0x00, SLAVE_REG_DIAG,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
- AsciDbgLog("Slave SLAVE_REG_DIAG Reg: 0x%04X", rxBuff[3]<<8|rxBuff[2]);
+ //--- Disable ACQ Watchdog ---
+ AsciIoWriteSlaveReg(0x00,SLAVE_REG_DEVCFG1,0x0040);
 
- AsciIoWriteSlaveReg(0x00,SLAVE_REG_SCANCTRL,0x0000);
- AsciIoWriteSlaveReg(0x00,SLAVE_REG_SCANCTRL,0x0B00);
+ //---ADC Full-scale diag ---
+ AsciIoWriteSlaveReg(0x00,SLAVE_REG_DIAGCFG,0x0005);
  AsciIoWriteSlaveReg(0x00,SLAVE_REG_SCANCTRL,0x0001);
- AsciIoWriteSlaveReg(0x00,SLAVE_REG_ALRTOVCELL,0x3700);
+ AsciIoSlaveReadReg(0x00, SLAVE_REG_DIAG,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
+ AsciDbgLog("ADC Full-scale diag SLAVE_REG_DIAG Reg: 0x%04X", rxBuff[3]<<8|rxBuff[2]);
+
+ //--ADC Zero-scale diag ---
+ AsciIoWriteSlaveReg(0x00,SLAVE_REG_DIAGCFG,0x0004);
+ AsciIoWriteSlaveReg(0x00,SLAVE_REG_SCANCTRL,0x0001);
+ AsciIoSlaveReadReg(0x00, SLAVE_REG_DIAG,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
+ AsciDbgLog("ADC Zero-scale SLAVE_REG_DIAG Reg: 0x%04X", rxBuff[3]<<8|rxBuff[2]);
+
+ //---ADC Diag Off ---
+ AsciIoWriteSlaveReg(0x00,SLAVE_REG_DIAGCFG,0x0000);
+
+ //---Enables measurement of the respective cell ---
+ AsciIoWriteSlaveReg(0x00,SLAVE_REG_MEASUREEN,0xFFFF);
+ //--- Configures the conversion time ---
+ AsciIoWriteSlaveReg(0x00,SLAVE_REG_ACQCFG,0x0003);
+ //--- Enables the acquisition mode ---
+ AsciIoWriteSlaveReg(0x00,SLAVE_REG_SCANCTRL,0x0001);
+
 
  AsciIoSlaveReadReg(0x00, SLAVE_REG_CELL1,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
- AsciDbgLog("Slave CELL1 Reg: 0x%04X,Voltage:%f", rxBuff[3]<<8|rxBuff[2], (rxBuff[3]<<8|rxBuff[2]) * 0.00097);
-
+ AsciDbgLog("CELL1:%fV", ConvertMeasData(rxBuff + 2));
+ AsciIoSlaveReadReg(0x00, SLAVE_REG_CELL2,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
+ AsciDbgLog("CELL2:%fV", ConvertMeasData(rxBuff + 2));
+ AsciIoSlaveReadReg(0x00, SLAVE_REG_CELL3,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
+ AsciDbgLog("CELL3:%fV", ConvertMeasData(rxBuff + 2));
+ AsciIoSlaveReadReg(0x00, SLAVE_REG_CELL4,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
+ AsciDbgLog("CELL4:%fV", ConvertMeasData(rxBuff + 2));
+ AsciIoSlaveReadReg(0x00, SLAVE_REG_CELL5,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
+ AsciDbgLog("CELL5:%fV", ConvertMeasData(rxBuff + 2));
  AsciIoSlaveReadReg(0x00, SLAVE_REG_CELL6,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
- AsciDbgLog("Slave CELL6 Reg: 0x%04X,Voltage:%f", rxBuff[3]<<8|rxBuff[2], (rxBuff[3]<<8|rxBuff[2]) * 0.00097);
-
+ AsciDbgLog("CELL6:%fV", ConvertMeasData(rxBuff + 2));
+ AsciIoSlaveReadReg(0x00, SLAVE_REG_CELL7,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
+ AsciDbgLog("CELL7:%fV", ConvertMeasData(rxBuff + 2));
+ AsciIoSlaveReadReg(0x00, SLAVE_REG_CELL8,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
+ AsciDbgLog("CELL8:%fV", ConvertMeasData(rxBuff + 2));
+ AsciIoSlaveReadReg(0x00, SLAVE_REG_CELL9,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
+ AsciDbgLog("CELL9:%fV", ConvertMeasData(rxBuff + 2));
+ AsciIoSlaveReadReg(0x00, SLAVE_REG_CELL10,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
+ AsciDbgLog("CELL10:%fV", ConvertMeasData(rxBuff + 2));
  AsciIoSlaveReadReg(0x00, SLAVE_REG_CELL11,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
- AsciDbgLog("Slave CELL11 Reg: 0x%04X", rxBuff[3]<<8|rxBuff[2]);
-
-
+ AsciDbgLog("CELL11:%fV", ConvertMeasData(rxBuff + 2));
+ AsciIoSlaveReadReg(0x00, SLAVE_REG_CELL12,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
+ AsciDbgLog("CELL12:%fV", ConvertMeasData(rxBuff + 2));
+ AsciIoSlaveReadReg(0x00, SLAVE_REG_BLOCK,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
+// AsciDbgLog("Block:%fV", ConvertMeasData(rxBuff + 2));
+// AsciIoSlaveReadReg(0x00, SLAVE_REG_AUXIN1,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
+// AsciDbgLog("AUXIN1:%fV", ConvertMeasData(rxBuff + 2));
+// AsciIoSlaveReadReg(0x00, SLAVE_REG_AUXIN2,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
+// AsciDbgLog("AUXIN2:%fV", ConvertMeasData(rxBuff + 2));
+// AsciIoSlaveReadReg(0x00, SLAVE_REG_TOTAL,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
+// AsciDbgLog("SLAVE_REG_TOTAL:%fV", ConvertMeasData(rxBuff + 2));
  return 0;
 }
 

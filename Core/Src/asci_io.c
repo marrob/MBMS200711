@@ -162,55 +162,23 @@ void AsciIoPEC_CalcTest(void){
 
 uint8_t PEC_calc(uint8_t *data, uint8_t size, uint8_t crc)
 {
-  // CRCByte is initialized to 0 for each ByteList in this implementation, where
-  // ByteList contains all bytes of a single command. It is passed into the
-  // function in case a partial ByteList calculation is needed.
-  // Data is transmitted and calculated in LSb first format
-  // Polynomial = x^8+x^6+x^3+x^2+1
-  //*POLY = &HB2 // 10110010b for LSb first
-    uint8_t poly = 0xB2;
-  //Loop once for each byte in the ByteList
-  //*For ByteCounter = 0 to (NumberOfBytes – 1)
-
+  uint8_t poly = 0xB2;
   for(uint8_t  byte =0; byte < size; byte++)
   {
-    //CRCByte = CRCByte XOR ByteList(Counter1)
     crc = crc ^ data[byte];
-    //Process each of the 8 CRCByte remainder bits
-
     for(uint8_t bit = 0; bit < 8; bit++)
     {
-      // The LSb should be shifted toward the highest order polynomial
-      // coefficient. This is a right shift for data stored LSb to the right
-      // and POLY having high order coefficients stored to the right.
-      // Determine if LSb = 1 prior to right shift
-      //If (CRCByte AND &H01) = 1 Then
-      if(crc & 0x01){
-       // When LSb = 1, right shift and XOR CRCByte value with 8 LSbs
-       // of the polynomial coefficient constant. “/ 2” must be a true right
-       // shift in the target CPU to avoid rounding problems.
-       //CRCByte = ((CRCByte / 2) XOR POLY)
+      if(crc & 0x01)
+      {
         crc = ((crc/2)^poly);
       }
       else
       {
-        //When LSb = 0, right shift by 1 bit. “/ 2” must be a true right
-        // shift in the target CPU to avoid rounding problems.
-        //CRCByte = (CRCByte / 2)
         crc = crc/2;
       }
-      //Truncate the CRC value to 8 bits if necessary
-      //CRCByte = CRCByte AND &HFF
       crc = crc & 0xFF;
-      //Proceed to the next bit
-      //Next BitCounter
     }
-    //Operate on the next data byte in the ByteList
-    //Next ByteCounter
   }
-  // All calculations done; CRCByte value is the CRC byte for ByteList() and
-  // the initial CRCByte value
-  //Return CRCByte
   return crc;
 }
 
@@ -243,5 +211,20 @@ uint8_t AsciIoReadReg(uint8_t regAddr, uint8_t *rxBuffer, uint8_t size)
 }
 
 
+double ConvertMeasData(uint8_t *buffer){
+
+  /*
+   * AsciIoSlaveReadReg(0x00, SLAVE_REG_CELL1,rxBuff, SLAVE_RD_BUFFER_SIZE(slaveCnt));
+   * AsciDbgLog("CELL1 Voltage:%f", (((rxBuff[3]<<8|rxBuff[2]))>>2) * 305.176E-6);
+   * AsciDbgLog("CELL1c Voltage:%f", ((*(uint16_t*)rxBuff)>>2) * 305.176E-6);
+   */
+  double retval = 0;
+  uint16_t value = *((uint16_t*)buffer);
+  //sprintf(strBuff,"RX_Status:0x%02X",value);
+  //AsciDbgLog(strBuff);
+  value >>=2;
+  retval = value * ADC_VREF_VOLT;
+  return retval;
+}
 
 /************************ (C) COPYRIGHT KonvolucioBt ***********END OF FILE****/
