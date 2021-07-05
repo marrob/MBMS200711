@@ -67,9 +67,7 @@ uint8_t AsciIoSlaveReadReg(uint8_t slave, uint8_t regAddr, uint8_t *rx, uint8_t 
     AsciErrLog("AsciIoSlaveReadReg rxPEC:0x%02X calcRxPEC:0x%02X", rxPEC, calcRxPEC);
     return ASCI_PEC_ERROR;
   }
-
   return ASCI_OK;
-
 }
 
 
@@ -135,8 +133,7 @@ uint8_t AsciIoUartWriteRead(uint8_t *tx, uint8_t txSize, uint8_t *rx, uint8_t rx
     AsciIoReadReg(SPI_CMD_RD_NXT_MSG, rx, rxSize);
     StringPlusDataToHexaString(rx,strBuff, rxSize);
     //AsciUsrLog("TR:%04ld-Read:%s", transaction, strBuff);
-  }else
-  {
+  }else{
     AsciErrLog("rx buffer is NULL");
   }
 

@@ -31,11 +31,22 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+typedef struct _DeviceTypeDef
+{
+  struct _status
+  {
+    uint32_t UartTaskCnt;
+    uint32_t SuccessParsedCmdCnt;
+  }Status;
+
+}DeviceTypeDef;
 
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define UART_BUFFER_SIZE        40
+#define CMDLINE_UNKNOWN_PARAMETER_ERROR    "!UNKNOWN PARAMETER ERROR '%s'"
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -47,18 +58,25 @@
 SPI_HandleTypeDef hspi2;
 
 UART_HandleTypeDef huart1;
+DMA_HandleTypeDef hdma_usart1_rx;
 
 /* USER CODE BEGIN PV */
 LiveLED_HnadleTypeDef hLiveLed;
+DeviceTypeDef Device;
 uint32_t UartRxTimestamp;
+char UartRxBuffer[UART_BUFFER_SIZE];
+char UartTxBuffer[UART_BUFFER_SIZE];
+char Receive[UART_BUFFER_SIZE];
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_USART1_UART_Init(void);
+void UartTask(void);
 /* USER CODE BEGIN PFP */
 void LiveLedOff(void);
 void LiveLedOn(void);
@@ -69,7 +87,51 @@ void LiveLedOn(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  DeviceErrLog("Megtelt");
+}
 
+void UartTask(void)
+{
+  if(strlen(UartRxBuffer)==0)
+    return;
+
+  uint8_t terminated = 0;
+  for(uint8_t i=0; i<strlen(UartRxBuffer);i++)
+    if(UartRxBuffer[i]=='\r' || UartRxBuffer[i]=='\n')
+    {
+      UartRxBuffer[i]=0;
+      terminated = 1;
+    }
+
+  if(!terminated)
+     return;
+  else
+    HAL_UART_DMAStop(&huart1);
+
+  if(!strcmp(UartRxBuffer , "*OPC?"))
+  {
+    Device.Status.SuccessParsedCmdCnt++;
+    strcpy(UartTxBuffer, "*OPC");
+  }
+  else
+  {
+    sprintf(UartTxBuffer, CMDLINE_UNKNOWN_PARAMETER_ERROR, UartRxBuffer);
+  }
+
+  uint8_t resp_len =strlen(UartTxBuffer);
+  UartTxBuffer[resp_len]= '\r';
+  UartTxBuffer[++resp_len]= 0;
+
+  if(strlen(UartTxBuffer)!=0)
+  {
+    //!!!DeviceDbgLog("Rx:%s, Tx:%s",UartRxBuffer,UartTxBuffer);
+    HAL_UART_Transmit(&huart1, (uint8_t*) UartTxBuffer, sizeof(UartTxBuffer), 100);
+    memset(UartTxBuffer,0x00,UART_BUFFER_SIZE);
+    HAL_UART_Receive_DMA(&huart1, (uint8_t*) UartRxBuffer, UART_BUFFER_SIZE);
+  }
+}
 /* USER CODE END 0 */
 
 /**
@@ -104,6 +166,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_SPI2_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
@@ -111,24 +174,22 @@ int main(void)
   DelayMs(500);
 
 
-  printf(VT100_CLEARSCREEN);
-  printf(VT100_CURSORHOME);
-  printf(VT100_ATTR_RESET);
+  DeviceUsrLog(VT100_CLEARSCREEN);
+  DeviceUsrLog(VT100_CURSORHOME);
+  DeviceUsrLog(VT100_ATTR_RESET);
 
 #ifdef DEBUG
-  printf(VT100_ATTR_RED);
-    DeviceUsrLog("This is a DEBUG version.");
-  printf(VT100_ATTR_RESET);
+  DeviceUsrLog(VT100_ATTR_RED);
+  DeviceUsrLog("This is a DEBUG version.");
+  DeviceUsrLog(VT100_ATTR_RESET);
 #endif
 
   DeviceUsrLog("Manufacturer:%s, Name:%s, Version:%04X",DEVICE_MNF, DEVICE_NAME, DEVICE_FW);
 
+  UartRxTimestamp = HAL_GetTick();
 
-UartRxTimestamp = HAL_GetTick();
-
-//AsciIoPEC_CalcTest();
-AsciAdapterInit();
-
+  AsciAdapterInit();
+  HAL_UART_Receive_DMA (&huart1, (uint8_t*)UartRxBuffer, UART_BUFFER_SIZE);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -140,6 +201,7 @@ AsciAdapterInit();
     /* USER CODE BEGIN 3 */
     LiveLedTask(&hLiveLed);
     AsciAdapterTask();
+    UartTask();
   }
   /* USER CODE END 3 */
 }
@@ -254,6 +316,22 @@ static void MX_USART1_UART_Init(void)
 }
 
 /**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Channel5_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel5_IRQn);
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -307,20 +385,19 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 /* printf -------------------------------------------------------------------*/
+int _write(int file, char *ptr, int len)
+{
+  int i=0;
+  for(i=0 ; i<len ; i++)
+    ITM_SendChar((*ptr++));
+  return len;
+}
 
 //int _write(int file, char *ptr, int len)
 //{
-//  int i=0;
-//  for(i=0 ; i<len ; i++)
-//    ITM_SendChar((*ptr++));
+//  HAL_UART_Transmit(&huart1, (uint8_t*)ptr, len, 100);
 //  return len;
 //}
-
-int _write(int file, char *ptr, int len)
-{
-  HAL_UART_Transmit(&huart1, (uint8_t*)ptr, len, 100);
-  return len;
-}
 
 //int _write(int file, char *ptr, int len)
 //{

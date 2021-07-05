@@ -29,8 +29,7 @@ extern "C" {
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f1xx_hal.h"
-#include <stdio.h>
-#include "vt100.h"
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -120,6 +119,7 @@ extern SPI_HandleTypeDef hspi2;
 /* VT100 ---------------------------------------------------------------------*/
 
 /* USER CODE END Private defines */
+
 #ifdef __cplusplus
 }
 #endif
