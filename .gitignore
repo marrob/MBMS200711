@@ -12,3 +12,5 @@ Release/*
 *.opensdf
 *.tmp
 
+stm32cubeide.project.prefs
+language.settings.xml
